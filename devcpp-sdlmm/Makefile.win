@@ -1,0 +1,32 @@
+# Project: sdlmm
+# Makefile created by Dev-C++ 5.4.0
+
+CPP      = g++.exe -D__DEBUG__
+CC       = gcc.exe -D__DEBUG__
+WINDRES  = windres.exe
+OBJ      = obj/test.o obj/sdlmm.o $(RES)
+LINKOBJ  = obj/test.o obj/sdlmm.o $(RES)
+LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW32/lib" -static-libstdc++ -static-libgcc -L"lib" lib/libfreetype.dll.a lib/libSDL2_image.dll.a lib/libSDL2_ttf.dll.a lib/SDL.dll  -g3
+INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW32/include" -I"include" -I"include/SDL" -I"include/freetype2"
+CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW32/include" -I"include" -I"include/SDL" -I"include/freetype2"
+BIN      = bin/sdlmm.exe
+CXXFLAGS = $(CXXINCS)  -O3 -g3
+CFLAGS   = $(INCS)  -O3 -g3
+RM       = rm -f
+
+.PHONY: all all-before all-after clean clean-custom
+
+all: all-before $(BIN) all-after
+
+
+clean: clean-custom
+	${RM} $(OBJ) $(BIN)
+
+$(BIN): $(OBJ)
+	$(CC) $(LINKOBJ) -o $(BIN) $(LIBS)
+
+obj/test.o: test.c
+	$(CC) -c test.c -o obj/test.o $(CFLAGS)
+
+obj/sdlmm.o: src/sdlmm.c
+	$(CC) -c src/sdlmm.c -o obj/sdlmm.o $(CFLAGS)
