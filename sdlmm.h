@@ -18,6 +18,8 @@ void drawrect(int x,int y,int w,int h,int color);
 void fillrect(int x,int y,int w,int h,int color);
 void fillcircle(int x,int y,double r,int color);
 void drawpixels(int* pixels,int x,int y,int w,int h);
+void drawpixels2(int* pixels,int x,int y,int w,int h,int colorkey);
+
 //load picture
 void loadimage(const char* filename,int** ret,int* w,int *h);
 ///////////////////////////////////////////////////////////
