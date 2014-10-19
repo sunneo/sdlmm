@@ -125,30 +125,40 @@ void setonmouse(void(*fnc)(int x,int y,int on,int btn)) {
     if(fnc) sdlmousefnc = fnc;
 }
 
-static void sdlset_pixel(SDL_Surface *surface, int x, int y, Uint32 pixel)
-{
-    Uint8* target_pixel;
-    if(x >= surface->w || x < 0 ||y >=surface->h||y<0) return;
-    target_pixel = ( (Uint8 *)surface->pixels) + y * surface->pitch + x * 4;
-    *(Uint32 *)target_pixel = pixel;
-}
-
-static void sdlset_pixel_nocheck(SDL_Surface *surface, int x, int y, Uint32 pixel)
+__inline static void sdlset_pixel_nocheck(SDL_Surface *surface, int x, int y, Uint32 pixel)
 {
     Uint8 *target_pixel = (Uint8 *)surface->pixels + y * surface->pitch + x * 4;
     *(Uint32 *)target_pixel = pixel;
 }
 
-static void sdlset_pixel_nocheck_with_alpha(SDL_Surface *surface, int x, int y, Uint32 pixel)
+__inline static void sdlset_pixel_nocheck_with_alpha(SDL_Surface *surface, int x, int y, Uint32 pixel)
 {
     Uint8 *target_pixel = (Uint8 *)surface->pixels + y * surface->pitch + x * 4;
     Uint32 v = *(Uint32 *)target_pixel;
     Uint32 a2 = ((pixel >> 24) & 0xff);
-//   a2 = (a2) | (a2 << 8) | (a2 << 16) | (a2 << 24);
-    a2 *= 0x01010101;
+    a2 = (a2) | (a2 << 8) | (a2 << 16) | (a2 << 24);
     Uint32 ua2 = ~a2;
-    *(Uint32 *)target_pixel = (v&ua2)|(pixel&a2);
+    *(Uint32 *)target_pixel = (v&ua2)+(pixel&a2);
 }
+
+static int sdlUseAlpha = 0;
+void setusealpha(int usealpha){
+    sdlUseAlpha = usealpha;
+}
+
+static void sdlset_pixel(SDL_Surface *surface, int x, int y, Uint32 pixel)
+{
+    Uint8* target_pixel;
+    if(x >= surface->w || x < 0 ||y >=surface->h||y<0) return;   
+    if(sdlUseAlpha){
+        sdlset_pixel_nocheck_with_alpha(surface,x,y,pixel);
+    }
+    else{
+        sdlset_pixel_nocheck(surface,x,y,pixel);
+    }
+}
+
+
 
 static void sdldraw_circle(SDL_Surface *surface, int n_cx, int n_cy, int radius, Uint32 pixel){
     double error = (double)-radius;
@@ -220,6 +230,33 @@ static void sdldrawLine(SDL_Surface *Screen, int x0, int y0, int x1, int y1, Uin
     if(lock)SDL_UnlockSurface(Screen);
 
 }
+void copyscreen(int** ret,int x,int y,int w,int h){
+   
+   int* pret = (int*)malloc(w*h*sizeof(int));
+   int i,j;
+   int targetx,targety;
+   Uint8* target_pixel;
+   if(!pret) {
+       fprintf(stderr,"Allocation Failed while copyscreen\n");
+       exit(-1);
+   }
+   *ret = pret;
+   SDL_mutexP(drawqueue_mutex);
+   for(j=0; j<h; ++j){
+       targety = j+y;
+       if(targety<0) continue;
+       if(targety >drawscreen->h) break;
+       
+       for(i=0;i<w; ++i){
+           targetx = x+i;
+           if(targetx < 0) continue;
+           if(targetx >drawscreen->w) break;
+           target_pixel = ((Uint8 *)(drawscreen->pixels)) + targety * drawscreen->pitch + targetx * 4;
+           pret[j*w+i] = *((Uint32*)target_pixel);
+       }
+   }
+   SDL_mutexV(drawqueue_mutex);
+}
 static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int w, int h) {
     int i,j;
     int miny = y+h;
@@ -249,7 +286,9 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
     SDL_LockSurface(Screen);
     for(j=y; j<miny ; ++j) {
         for(i=x; i<minx; ++i) {
-            sdlset_pixel_nocheck(Screen,i,j,color);
+           
+                sdlset_pixel(Screen,i,j,color);
+           
         }
     }
     SDL_UnlockSurface(Screen);
@@ -289,7 +328,7 @@ typedef struct SetTextFontReq {
 static SetTextFontReq setTextFontReq;
 static int hasSetTextFontReq = 0;
 
-static void sdldrawpixels_masked_helper(SDL_Surface *Screen,Uint32* pixels, int x, int y, int w, int h,int foreground,int transkey,int replaceFore) {
+static void sdldrawpixels_text_masked_helper(SDL_Surface *Screen,Uint32* pixels, int x, int y, int w, int h,int foreground,int transkey,int replaceFore) {
     int i,j;
     int miny = y+h;
     int minx = x+w;
@@ -303,35 +342,24 @@ static void sdldrawpixels_masked_helper(SDL_Surface *Screen,Uint32* pixels, int 
             Uint32 pixel = *pixels;
             Uint32 alpha = pixel&0xff000000;
             if(pixel != transkey&&((alpha)!=0 )) {
-                if(replaceFore){
-                   pixel = alpha|(foreground&0xffffff);
-                }
-                sdlset_pixel_nocheck_with_alpha(Screen,i,j,pixel);
+               if(replaceFore){
+               	   pixel = alpha|(foreground&0xffffff);
+               }   
+               sdlset_pixel_nocheck_with_alpha(Screen,i,j,pixel);
             }
             ++pixels;
         }
-    }
-    SDL_UnlockSurface(Screen);
+   }
+   SDL_UnlockSurface(Screen);
+}
+static void sdldrawpixels_text_masked(SDL_Surface *Screen,Uint32* pixels, int x, int y, int w, int h,int foreground,int transkey){
+	sdldrawpixels_text_masked_helper(Screen,pixels,x,y,w,h,foreground,transkey,1);
 }
 
-static void sdldrawpixels_text_masked(SDL_Surface *Screen,Uint32* pixels, int x, int y, int w, int h,int foreground,int transkey) {
-   sdldrawpixels_masked_helper(Screen,pixels,x,y,w,h,foreground,transkey,1);
+static void sdldrawpixels2(SDL_Surface* Screen,int* pixels,int x,int y,int w,int h,int transkey){
+	sdldrawpixels_text_masked_helper(Screen,pixels,x,y,w,h,0,transkey,0);
 }
 
-static void sdldrawpixels2(SDL_Surface* Screen,int* pixels,int x,int y,int w,int h,int key){
-   sdldrawpixels_masked_helper(Screen,pixels,x,y,w,h,0,key,0);
-}
-void drawpixels2(int* pixels,int x,int y,int w,int h,int k){
-    SDL_mutexP(drawqueue_mutex);
-    if(drawscreen) {
-        sdldrawpixels2(drawscreen,(Uint32*) pixels,x, y, w, h,k);
-        if(sdlalwaysflush) {
-            SDL_Flip(drawscreen);
-        }
-    }
-    SDL_mutexV(drawqueue_mutex);
-
-}
 void settextfont(const char* font,int fontsize) {
     SDL_mutexP(drawqueue_mutex);
     hasSetTextFontReq = 1;
