@@ -21,7 +21,7 @@ void fillcircle(int x,int y,double r,int color);
 void drawpixels(int* pixels,int x,int y,int w,int h);
 void drawpixels2(int* pixels,int x,int y,int w,int h,int transkey);
 //load picture
-void loadimage(const char* filename,int** ret,int* w,int *h);
+void loadimage(const char* filename,int** ret,int* w,int *h); 
 void copyscreen(int** ret,int x,int y,int w,int h);
 ///////////////////////////////////////////////////////////
 
