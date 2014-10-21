@@ -1,0 +1,10 @@
+#resource can be "cpu","gpu","opencl" 
+#or simply combine two resource in a line with white space as delimiter
+#for i.e. "gpu cpu"
+resource="gpu "
+#power factor for device 
+powerfactor="1.000000 "
+#cuda device order
+cudaDevOrder="0 "
+update_powerfactor=0 #update power factor
+dynamic_loadbalance=1 #whether dynamic loadbalance is enabled 
