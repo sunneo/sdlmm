@@ -28,8 +28,8 @@ CustomMakefile=
 IncludeVersionInfo=0
 SupportXPThemes=0
 CompilerSet=0
-CompilerSettings=000000b000000000001000000
-UnitCount=8
+CompilerSettings=000100b000000000001000000
+UnitCount=11
 
 [VersionInfo]
 Major=1
@@ -129,4 +129,34 @@ Link=0
 Priority=1000
 OverrideBuildCmd=0
 BuildCmd=$(CC) -c CombineKeyText.c -o obj/CombineKeyText.o $(CFLAGS)
+
+[Unit9]
+FileName=exams\AlphaDraw.c
+CompileCpp=0
+Folder=examples
+Compile=0
+Link=0
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=$(CC) -c AlphaDraw.c -o obj/AlphaDraw.o $(CFLAGS)
+
+[Unit10]
+FileName=exams\particles.c
+CompileCpp=0
+Folder=examples
+Compile=0
+Link=0
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=$(CC) -c particles.c -o obj/particles.o $(CFLAGS)
+
+[Unit11]
+FileName=exams\particles2.c
+CompileCpp=0
+Folder=examples
+Compile=0
+Link=0
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=$(CC) -c particles2.c -o obj/particles2.o $(CFLAGS)
 
