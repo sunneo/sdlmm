@@ -5,20 +5,22 @@
 #define SCREEN_X 800
 #define SCREEN_Y 600
 static const int FPS=60;
-typedef struct Bitmap{
+typedef struct AnimeBitmap{
     int* pixels;
     int width;
     int height;
-}Bitmap;
+}AnimeBitmap;
 
+struct AnimationPlayContext;
 typedef struct Animation{
-   Bitmap** bitmapSeq;
+   AnimeBitmap** bitmapSeq;
    int bitmapSeqCnt;
    int* x_translation;
    int* y_translation;
    int* translation_duration_frame; 
    int* sequenceCode;
    int seqCnt;
+   struct AnimationPlayContext* playctx;
 }Animation;
 
 typedef struct AnimationPlayContext{
@@ -29,12 +31,12 @@ typedef struct AnimationPlayContext{
     int sequenceIdx;
 }AnimationPlayContext;
 
-static Bitmap* loadBMP(const char* filename){
-    Bitmap* ret = (Bitmap*)malloc(sizeof(Bitmap));
+static AnimeBitmap* loadBMP(const char* filename){
+    AnimeBitmap* ret = (AnimeBitmap*)malloc(sizeof(AnimeBitmap));
     loadimage(filename,&ret->pixels,&ret->width,&ret->height);
     return ret;
 }
-static Animation* loadAnimationDescription(const char* fname){
+static Animation* anime_load(const char* fname){
     FILE* fp = fopen(fname,"r");
     Animation* ret;
     if(fp){
@@ -44,8 +46,9 @@ static Animation* loadAnimationDescription(const char* fname){
             sscanf(buf,"%d",&cnt);
         }
         ret = (Animation*)malloc(sizeof(Animation));
+        ret->playctx=0;
         if(cnt > 0){
-            ret->bitmapSeq = (Bitmap**)malloc(sizeof(Bitmap*)*cnt);
+            ret->bitmapSeq = (AnimeBitmap**)malloc(sizeof(AnimeBitmap*)*cnt);
             ret->bitmapSeqCnt = cnt;
         }
         for(i=0; i<cnt; ++i){
@@ -103,38 +106,44 @@ static void animationPlayContextNextStatus(AnimationPlayContext* a,int seq){
     
 }
 
-static AnimationPlayContext* createAnimationPlayContext(Animation* animation){
-    AnimationPlayContext* ret = (AnimationPlayContext*)malloc(sizeof(AnimationPlayContext));
+static void anime_start_play(Animation* animation){
+    AnimationPlayContext* ret = (AnimationPlayContext*)calloc(1,sizeof(AnimationPlayContext));
     ret->animation = animation;
     ret->currentFrame = 0;
     ret->sequenceIdx = 0;
     animationPlayContextNextStatus(ret,0);
-    return ret;
+    animation->playctx = ret;
 }
 
-static void advanceAnimationPlayContext(AnimationPlayContext* ctx){
-    Bitmap* bmp;
-    int seqIdx,seqCode;
-    if(ctx->sequenceIdx >= ctx->animation->seqCnt){
-        ctx->sequenceIdx = 0;
+static void anime_show(Animation* anime){
+    AnimationPlayContext* ctx;
+    AnimeBitmap* bmp;
+    if(!anime->playctx){
+        anime_start_play(anime);
     }
-    seqIdx=ctx->sequenceIdx;
-    seqCode=ctx->animation->sequenceCode[seqIdx];
-    bmp = ctx->animation->bitmapSeq[seqCode ];
+    ctx = anime->playctx;
+    bmp = ctx->animation->bitmapSeq[ctx->animation->sequenceCode[ctx->sequenceIdx] ];
     drawpixels(bmp->pixels,ctx->x,ctx->y,bmp->width,bmp->height);
+}
+
+static void anime_advance(Animation* anime){
+    AnimationPlayContext* ctx;
+    if(!anime->playctx){
+        anime_start_play(anime);
+    }
+    ctx = anime->playctx;
     ctx->x+=ctx->dx;
     ctx->y+=ctx->dy;
     ++ctx->currentFrame;
-    if(ctx->currentFrame >= ctx->animation->translation_duration_frame[ctx->sequenceIdx]){
+    if(ctx->currentFrame >= ctx->animation->translation_duration_frame[ctx->sequenceIdx]){ 
        ctx->currentFrame=0;
-       ++ctx->sequenceIdx;
-       animationPlayContextNextStatus(ctx,ctx->sequenceIdx);
+       ++ctx->sequenceIdx;  
        if(ctx->sequenceIdx>=ctx->animation->seqCnt){
            ctx->sequenceIdx = 0;
-       }    
+       }
+       animationPlayContextNextStatus(ctx,ctx->sequenceIdx);
     }
 }
-
 /**
  * example of input file
 5
@@ -178,22 +187,20 @@ C:\Users\HPDS\devcpp-sdlmm\bin\anim\pics\4.bmp
 100 100 10  1
 100 100 10  0
 */
-  
 int main (int argc, char** argv)
 {
    Animation* animation;
-   AnimationPlayContext* playctx;
    screen (SCREEN_X, SCREEN_Y);
    screentitle("Sort");
-   animation = loadAnimationDescription("anime.txt");
+   animation = anime_load("anime.txt");
    if(!animation){
        fprintf(stderr,"Not found file:anime.txt");
        return 0;
    }
-   playctx=createAnimationPlayContext(animation);
    while(1){
        fillrect(0,0,SCREEN_X,SCREEN_Y,0xffffff);
-       advanceAnimationPlayContext(playctx);
+       anime_show(animation);
+       anime_advance(animation);
        flushscreen();
        delay(1000/FPS);
    }
