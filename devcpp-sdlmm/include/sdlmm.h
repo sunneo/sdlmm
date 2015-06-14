@@ -6,6 +6,7 @@
 void screen(int width,int height);
 void screentitle(const char* title);
 void setalwaysflush(int doflush);
+void setusealpha(int usealpha);
 void flushscreen();
 
 
@@ -18,8 +19,10 @@ void drawrect(int x,int y,int w,int h,int color);
 void fillrect(int x,int y,int w,int h,int color);
 void fillcircle(int x,int y,double r,int color);
 void drawpixels(int* pixels,int x,int y,int w,int h);
+void drawpixels2(int* pixels,int x,int y,int w,int h,int transkey);
 //load picture
-void loadimage(const char* filename,int** ret,int* w,int *h);
+void loadimage(const char* filename,int** ret,int* w,int *h); 
+void copyscreen(int** ret,int x,int y,int w,int h);
 ///////////////////////////////////////////////////////////
 
 
