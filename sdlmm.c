@@ -170,8 +170,8 @@ static __inline__ void sdl_add_pos_for_floodfill(SDL_Surface* surface,int x,int 
       int sz=*size;
       int *a=*arr;
       if(bk+1 > sz){
-         sz = sz*4+1;
-         a = (int*)realloc(a,sizeof(int)*4*(sz));
+         sz = sz*2+1;
+         a = (int*)realloc(a,sizeof(int)*2*(sz));
          *size = sz;
          *arr=a;
       }

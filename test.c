@@ -50,9 +50,6 @@ int main(int argc, char *argv[]) {
                if(circles[i].r>=max_radius)
                    circles[i].active = 0;
            }
-           else{
-              sched_yield();
-           }
         }
         flushscreen();
         delay(1);
