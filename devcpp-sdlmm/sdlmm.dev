@@ -160,3 +160,13 @@ Priority=1000
 OverrideBuildCmd=0
 BuildCmd=$(CC) -c particles2.c -o obj/particles2.o $(CFLAGS)
 
+[Unit12]
+FileName=exams\farn.c
+CompileCpp=0
+Folder=examples
+Compile=0
+Link=0
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=$(CC) -c farn.c -o obj/farn.o $(CFLAGS)
+
