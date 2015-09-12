@@ -22,7 +22,7 @@ void fillcircle(int x,int y,double r,int color);
 void drawpixels(int* pixels,int x,int y,int w,int h);
 void drawpixels2(int* pixels,int x,int y,int w,int h,int transkey);
 //load picture
-void loadimage(const char* filename,int** ret,int* w,int *h); 
+void loadimage(const char* filename,int** ret,int* w,int *h);
 void copyscreen(int** ret,int x,int y,int w,int h);
 ///////////////////////////////////////////////////////////
 
@@ -55,4 +55,8 @@ void setonkey(void(*fnc)(int key,int ctrl,int on));
 int run_async(void (*fnc)(void*),void* param);
 void post_async(void (*fnc)(void*),void* param);
 void delay(int mills);
+////////////////////////////////////////////////////////
+void screen_msg_loop(int width,int height,const char* title);
+void start_main_drawfnc(void(*fnc)());
+
 #endif

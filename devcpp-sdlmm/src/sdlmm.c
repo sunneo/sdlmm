@@ -108,7 +108,6 @@ void loadimage(const char* filename,int** ret,int* w,int *h) {
         surface_to_array(img,ret,w,h);
     }
 }
-
 void setonkey(void(*fnc)(int key,int ctrl,int on)) {
     if(fnc) sdlkeyfnc=  fnc;
 }
@@ -130,14 +129,19 @@ __inline static void sdlset_pixel_nocheck(SDL_Surface *surface, int x, int y, Ui
     Uint8 *target_pixel = (Uint8 *)surface->pixels + y * surface->pitch + x * 4;
     *(Uint32 *)target_pixel = pixel;
 }
-
+__inline static void sdlset_pixel_nocheck2(SDL_Surface *surface, int x, int y, Uint32 pixel,Uint32 transkey)
+{
+    Uint8 *target_pixel;
+    if(pixel==transkey) return;
+    target_pixel = (Uint8 *)surface->pixels + y * surface->pitch + x * 4;
+    *(Uint32 *)target_pixel = pixel;
+}
 __inline static void sdlset_pixel_nocheck_with_alpha(SDL_Surface *surface, int x, int y, Uint32 pixel)
 {
     Uint8 *target_pixel = (Uint8 *)surface->pixels + y * surface->pitch + x * 4;
     Uint32 v = *(Uint32 *)target_pixel;
     Uint32 a2 = ((pixel >> 24) & 0xff);
-    //a2 = (a2) | (a2 << 8) | (a2 << 16) | (a2 << 24);
-    a2 *= 0x01010101;
+    a2 = (a2) | (a2 << 8) | (a2 << 16) | (a2 << 24);
     Uint32 ua2 = ~a2;
     *(Uint32 *)target_pixel = (v&ua2)+(pixel&a2);
 }
@@ -276,6 +280,24 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
     SDL_UnlockSurface(Screen);
 
 }
+static void sdldrawpixels_transkey(SDL_Surface *Screen,Uint32* pixels, int x, int y, int w, int h,int transkey) {
+    int i,j;
+    int miny = y+h;
+    int minx = x+w;
+    if(miny > Screen->h) miny=Screen->h;
+    if(minx > Screen->w) minx=Screen->w;
+    if(x<0) x = 0;
+    if(y<0) y = 0;
+    SDL_LockSurface(Screen);
+    for(j=y; j<miny; ++j) {
+        for(i=x; i<minx; ++i) {
+            sdlset_pixel_nocheck2(Screen,i,j,*pixels,transkey);
+            ++pixels;
+        }
+    }
+    SDL_UnlockSurface(Screen);
+
+}
 static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 color) {
     int i,j;
     int miny = y+h;
@@ -393,12 +415,12 @@ void sdl_main_run() {
     SDL_Event event;
     if(SDL_PollEvent(&event)) {
         if(event.type == SDL_QUIT) {
-            if(drawqueue_mutex){
+        /*    if(drawqueue_mutex){
                SDL_mutexP( drawqueue_mutex);
                drawscreen = 0;
                SDL_mutexV(drawqueue_mutex);
             }
-               
+          */     
             exit(0);
         }
         else if(event.type == SDL_KEYDOWN || event.type == SDL_KEYUP) {
@@ -449,7 +471,7 @@ typedef struct AudioContext{
    int isFull;
    int hasAudio;
 }AudioContext;
-static AudioContext audioContext;
+static volatile  AudioContext audioContext;
 static void fill_audio(void *udata, Uint8 *stream, int len){
           /* Only play if we have data left */
         if ( audioContext.audio_len == 0 ) return;
@@ -479,14 +501,19 @@ void playwave(short* wave,int len){
    do_playwave();
 }
 
-static void do_playwave(){
+static void do_playwave(){ 
    if(playwaveReq.len == 0) return;
-   int byteLen = playwaveReq.len * sizeof(short);
+   int byteLen = playwaveReq.len ;
    char* pwave = (char*)playwaveReq.wave;
    while(byteLen > 0){
+       int waveOffset = 0;
+       waveOffset = (int)((size_t)pwave)-((size_t)playwaveReq.wave);
        if(byteLen + audioContext.audio_offset >= 65535){
-          int procLen = 65536-audioContext.audio_offset;
-          memcpy(&audioContext.buf[audioContext.audio_offset],pwave,procLen);
+          int procLen = 65536-audioContext.audio_offset;         
+          if(procLen >= byteLen) procLen=byteLen;
+          if(audioContext.audio_offset + procLen <= 65536 ){
+             memcpy(&audioContext.buf[audioContext.audio_offset],pwave,procLen);
+          }
           byteLen -= procLen;
           pwave += procLen;
           audioContext.audio_len = procLen;
@@ -566,10 +593,11 @@ static void init_manual( ThreadParam* param) {
         FT_Init_FreeType(&ft_library);
         atexit(ft_atexit);
         atexit(SDL_Quit);
-        SDL_mutexP(drawqueue_mutex);
-        SDL_CondSignal(init_cond);
-        SDL_mutexV(drawqueue_mutex);
+        
     }
+    SDL_mutexP(drawqueue_mutex);
+    SDL_CondSignal(init_cond);
+    SDL_mutexV(drawqueue_mutex);
 }
 static int sdl_draw_thfnc(void* dummy) {
     ThreadParam* param = (ThreadParam*)dummy;
@@ -584,7 +612,7 @@ void setalwaysflush(int doflush) {
     sdlalwaysflush = doflush;
 }
 
-void screen(int width,int height) {
+static void screen_internal(int width,int height,int manual,const char* title) {
     ThreadParam* p;
     p = (ThreadParam*)malloc(sizeof(ThreadParam));
     p->width = width;
@@ -599,17 +627,27 @@ void screen(int width,int height) {
             perror("create cond failed");
         }
         drawthread_created = 1;
-        //init_manual(p);
-        if((drawthread=SDL_CreateThread(sdl_draw_thfnc,p)) == NULL) {
-            perror("create thread failed");
+        if(manual){
+           init_manual(p);
+           screentitle(title);
+           sdl_main_run();
+        }
+        else{       
+           if((drawthread=SDL_CreateThread(sdl_draw_thfnc,p)) == NULL) {
+               perror("create thread failed");
+           }
+           SDL_mutexP(drawqueue_mutex);
+           SDL_CondWait(init_cond,drawqueue_mutex);
+           SDL_mutexV(drawqueue_mutex);
         }
         if(init_audio()==0){
            atexit(audio_atexit);
         }
-        SDL_mutexP(drawqueue_mutex);
-        SDL_CondWait(init_cond,drawqueue_mutex);
-        SDL_mutexV(drawqueue_mutex);
     }
+}
+
+void screen(int w,int h){
+    screen_internal(w,h,0,0);
 }
 
 void drawpixel(int x,int y,int color) {
@@ -664,6 +702,17 @@ void drawpixels(int* pixels,int x,int y,int w,int h) {
     SDL_mutexP(drawqueue_mutex);
     if(drawscreen) {
         sdldrawpixels(drawscreen,(Uint32*) pixels,x, y, w, h);
+        if(sdlalwaysflush) {
+            SDL_Flip(drawscreen);
+        }
+    }
+    SDL_mutexV(drawqueue_mutex);
+}
+
+void drawpixels2(int* pixels,int x,int y,int w,int h,int transkey) {
+    SDL_mutexP(drawqueue_mutex);
+    if(drawscreen) {
+        sdldrawpixels_transkey(drawscreen,(Uint32*) pixels,x, y, w, h,transkey);
         if(sdlalwaysflush) {
             SDL_Flip(drawscreen);
         }
@@ -969,7 +1018,91 @@ static int post_async_looper(void* param){
         }
     }
 }
+static __inline__ Uint32 sdlget_pixel(SDL_Surface* surface,int x,int y){
+    Uint8 *target_pixel = (Uint8 *)surface->pixels + y * surface->pitch + x * 4;
+    return *(Uint32 *)target_pixel;
+}
 
+static __inline__ void sdl_add_pos_for_floodfill(SDL_Surface* surface,int x,int y,Uint32 color1,int** arr, int* size, int* back,Uint32 color2){
+   if(y<0 || y>=surface->h || x<0 || x>= surface->w) return;
+   if(sdlget_pixel(surface,x,y) == color1){
+      int bk=*back;
+      int sz=*size;
+      int *a=*arr;
+      if(bk+1 > sz){
+         sz = sz*2+1;
+         a = (int*)realloc(a,sizeof(int)*2*(sz));
+         *size = sz;
+         *arr=a;
+      }
+      a[bk*2] = y;
+      a[bk*2+1]=x;
+      *back=bk+1;
+      sdlset_pixel_nocheck(surface,x,y,color2);
+   }
+}
+static __inline__ void sdl_arr_add_up_left_right_down(SDL_Surface* surface,int x,int y,Uint32 color1,int** arr,int* size,int* back,Uint32 color2){
+   sdl_add_pos_for_floodfill(surface,x-1,y,color1,arr,size,back,color2);
+   sdl_add_pos_for_floodfill(surface,x+1,y,color1,arr,size,back,color2);
+   sdl_add_pos_for_floodfill(surface,x,y-1,color1,arr,size,back,color2);
+   sdl_add_pos_for_floodfill(surface,x,y+1,color1,arr,size,back,color2);
+}
+
+static void sdlfillxy(SDL_Surface* surface,int x,int y,Uint32 color2){
+   static int* sdlfillArr;
+   static int sdlfillback = 0;
+   static int sdlfillsize=1;
+   int front=0;
+   if(!sdlfillArr){
+      sdlfillArr=(int*)malloc(sizeof(int)*2);
+   }
+   Uint32 color1 = sdlget_pixel(surface,x,y);
+   sdl_arr_add_up_left_right_down(surface,x,y,color1,&sdlfillArr,&sdlfillsize,&sdlfillback,color2);
+   while(front < sdlfillback){
+      if(sdlfillback > surface->w*surface->h) {
+          break;
+      }
+      int y2=sdlfillArr[front*2];
+      int x2=sdlfillArr[front*2+1];
+      ++front;
+      sdl_arr_add_up_left_right_down(surface,x2,y2,color1,&sdlfillArr,&sdlfillsize,&sdlfillback,color2);
+   }
+   sdlfillback=0;
+}
+
+void fillxy(int x,int y,int color){
+    SDL_mutexP(drawqueue_mutex);
+    if(drawscreen) {
+        SDL_LockSurface(drawscreen);
+        sdlfillxy(drawscreen, x, y, color);
+        SDL_UnlockSurface(drawscreen);
+
+        if(sdlalwaysflush) {
+            SDL_Flip(drawscreen);
+        }
+    }
+    SDL_mutexV(drawqueue_mutex);
+}
+
+void stretchpixels(const int* pixels,int w,int h,int* output,int w2,int h2){
+    float dw=((float)w2)/w;
+    float dh=((float)h2)/h;
+    float i,j;
+    for(j=0; j<h2; j+=1){
+        for(i=0; i<w2; i+=1){
+            int origi=(int)(i/dw);
+            int origj=(int)(j/dh);
+            output[(int)(j*w2+i)]=pixels[(int)(origj*w+origi)];
+        }
+    }
+}
+void stretchpixels2(int** pixels,int w,int h,int w2,int h2){
+    int* newbg=(int*)malloc(sizeof(int)*w2*h2);
+    int* org=*pixels;
+    stretchpixels(org,w,h,newbg,w2,h2);
+    free(org);
+    *pixels=newbg;
+}
 void post_async(void (*fnc)(void*),void* param){
     int prevCnt = 0;
     if(!postAsyncQueue.mutex){
@@ -992,5 +1125,16 @@ void post_async(void (*fnc)(void*),void* param){
 }
 void delay(int mills){
     SDL_Delay(mills);
+}
+
+void screen_msg_loop(int width,int height,const char* title){
+    screen_internal(width,height,1,title);
+}
+void start_main_drawfnc(void(*fnc)()){
+    if(!fnc) return;
+    while(1){
+        sdl_main_run();
+        fnc();
+    }
 }
 #endif

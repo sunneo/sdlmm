@@ -16,13 +16,18 @@ void drawcircle(int x,int y,double r,int color) ;
 void drawpixel(int x,int y,int color);
 void drawline(int x1,int y1,int x2,int y2,int color);
 void drawrect(int x,int y,int w,int h,int color);
+void fillxy(int x,int y,int color);
 void fillrect(int x,int y,int w,int h,int color);
 void fillcircle(int x,int y,double r,int color);
 void drawpixels(int* pixels,int x,int y,int w,int h);
 void drawpixels2(int* pixels,int x,int y,int w,int h,int transkey);
 //load picture
-void loadimage(const char* filename,int** ret,int* w,int *h); 
+void loadimage(const char* filename,int** ret,int* w,int *h);
 void copyscreen(int** ret,int x,int y,int w,int h);
+
+// stretch pixels
+void stretchpixels(const int* pixels,int w,int h,int* output,int w2,int h2);
+void stretchpixels2(int** pixels,int w,int h,int w2,int h2);
 ///////////////////////////////////////////////////////////
 
 
@@ -54,4 +59,8 @@ void setonkey(void(*fnc)(int key,int ctrl,int on));
 int run_async(void (*fnc)(void*),void* param);
 void post_async(void (*fnc)(void*),void* param);
 void delay(int mills);
+////////////////////////////////////////////////////////
+void screen_msg_loop(int width,int height,const char* title);
+void start_main_drawfnc(void(*fnc)());
+
 #endif
