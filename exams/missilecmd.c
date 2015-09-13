@@ -13,6 +13,7 @@ static const int maxRadius=32;
 static const int maxMissile=16;
 static int score=0;
 static int remainMissile=45;
+static int remainGenEnermy=40;
 static int remainEnermy=40;
 static int maxEnemyMissile=15;
 static int* buildTex[2];
@@ -21,12 +22,13 @@ static int* launcherTex[5];
 static int* bg;
 volatile static int mx=0;
 volatile static int my=0;
+
 #define MAX_ENERMY_SPEED 2
 
 typedef struct Missile{
     int fx,fy,tx,ty;
     float x,y,dx,dy;
-    int alive,expl,r,targetBuild;
+    int alive,expl,r,targetBuild,ishit;
 }Missile;
 
 typedef struct OurLaunchedMissile{
@@ -50,10 +52,12 @@ static void draw_enermy(){
    for(i=0; i<20; ++i){
        if(!enermy[i].alive) continue;
        if(enermy[i].expl){
-           fillcircle(enermy[i].x,enermy[i].y,enermy[i].r,rand()<<10);
+           fillcircle(enermy[i].x,enermy[i].y,enermy[i].r,((rand()<<i) &0xffee00)|0xf0f000);
        }
        else{
-           drawline(enermy[i].fx,enermy[i].fy,enermy[i].x,enermy[i].y,0xff0000);
+           drawline(enermy[i].fx,enermy[i].fy,enermy[i].x,enermy[i].y,0x0000ff);
+           drawline(enermy[i].fx-1,enermy[i].fy,enermy[i].x,enermy[i].y,0x0000bb);
+           drawline(enermy[i].fx+1,enermy[i].fy,enermy[i].x,enermy[i].y,0x0000aa);
            //drawcircle(enermy[i].fx,enermy[i].fy,enermy[i].r,0xff0000);
            fillcircle(enermy[i].x,enermy[i].y,enermy[i].r+1,0xffff00);
            drawcircle(enermy[i].x,enermy[i].y,enermy[i].r,0xff0000);
@@ -66,12 +70,14 @@ static void update_enermy(){
    for(i=0; i<20; ++i){
        if(!enermy[i].alive) continue;
        if(enermy[i].expl){
-           if(enermy[i].r >= maxRadius){
+           if(enermy[i].r >= maxRadius*2){
                enermy[i].alive=0;
+               enermy[i].ishit = 0;
+               enermy[i].expl = 0;
                if(remainEnermy-1>=0)
                   --remainEnermy;
            }
-           ++enermy[i].r;
+           enermy[i].r+=2;
        }
        else{
            {
@@ -83,6 +89,7 @@ static void update_enermy(){
                        float distY = (enermy[i].y - launchedMissile[j].y);
                        if(distX*distX+distY*distY < launchedMissile[j].r*launchedMissile[j].r){
                            enermy[i].expl = 1;
+                           enermy[i].ishit = 1;
                            score+=100;
                            return;
                        }
@@ -92,10 +99,12 @@ static void update_enermy(){
                    if(j == i) continue;
                    if(!enermy[j].alive) continue;
                    if(!enermy[j].expl) continue;
+                   if(!enermy[j].ishit) continue;
                    float distX = (enermy[i].x - enermy[j].x);
                    float distY = (enermy[i].y - enermy[j].y);
                    if(distX*distX+distY*distY < enermy[j].r*enermy[j].r){
                        enermy[i].expl = 1;
+                       enermy[i].ishit = 1;
                        score+=100;
                        return;
                    }
@@ -112,7 +121,7 @@ static void update_enermy(){
 }
 
 static void generate_enermy(){
-    if(remainEnermy > 0){
+    if(remainGenEnermy > 0){
         int currentAlive=0;
         int i;
         for(i=0; i<20; ++i){
@@ -142,6 +151,8 @@ static void generate_enermy(){
                enermy[i].r = 2;
                enermy[i].targetBuild = targetIdx;
                ++currentAlive;
+               --remainGenEnermy;
+               if(remainGenEnermy==0) return;
             }
         }
    }
@@ -229,11 +240,11 @@ static void drawMessage(){
     char cenermy[256];
     sprintf(cscore,"Score:%-04d",score);
     sprintf(cmissile,":%04d",remainMissile);
-    sprintf(cenermy,"Enermy:%03d",remainEnermy);
+    sprintf(cenermy,"Enermy:%03d/%03d",remainEnermy,remainGenEnermy);
     drawtext(cscore,0,0,0xffffff);
     drawpixels2(missileTex,width-80-16,24,16,64,0xff0000);
     drawtext(cmissile,width-80,24,0xffffff);
-    drawtext(cenermy,width-160,0,0xffffff);
+    drawtext(cenermy,width-200,0,0xffffff);
 }
 static void draw_missile(){
     int i;
@@ -254,8 +265,17 @@ static void draw_missile(){
         }
     }
 }
+static void reinit(){
+    if(remainEnermy <= 0 && remainGenEnermy <= 0){
+         init_build(MAX_BUILD);
+         remainEnermy=40;
+         remainGenEnermy=40;
+         remainMissile = 45;
+    }
+}
 static void drawfnc(){
     //fillrect(0,0,width,height,0x2200dd);
+    reinit();
     drawpixels(bg,0,0,width,height);
     draw_build(MAX_BUILD);
     draw_missile();
@@ -294,13 +314,18 @@ static void generate_missile(int mx,int my){
         }
     }
 }
-void onmouse(int x,int y,int on,int btn){
+
+static void onmouse(int x,int y,int on,int btn){
     mx = x;
     my = y;
     if(on){
        generate_missile(mx,my);   
     }
 }
+/*
+static void void onkeyfnc(int key,int ctrl,int on){
+    
+}*/
 static void musicPlayer(void* p){
     short* wav;
     unsigned int len;
@@ -309,8 +334,6 @@ static void musicPlayer(void* p){
        playwave(wav,len);
    }
     free(wav);
-    
-    
 }
 int main(int argc, char** argv){
    //screen_msg_loop(width,height,"Missile Command [demo]");
