@@ -202,13 +202,15 @@ static void sdldraw_circle(SDL_Surface *surface, int n_cx, int n_cy, int radius,
 static void sdlfill_circle(SDL_Surface *surface, int cx, int cy, int radius, Uint32 pixel){
     static const int BPP = 4;
     double r = (double)radius;
-    double dy;
+    int idy;
     SDL_LockSurface(surface);
-    for (dy = 1; dy <= r; dy += 1.0){
-        double dx = floor(sqrt((2.0 * r * dy) - (dy * dy)));
+#pragma omp parallel for firstprivate(r,pixel,cx,cy,surface)
+    for (idy = 1; idy <= radius; idy += 1){
+        double dy = (double)idy;
+        int dx = (int) floor(sqrt((2.0 * r * dy) - (dy * dy)));
         int x = cx - dx;
-        Uint8 *target_pixel_a = (Uint8 *)surface->pixels + ((int)(cy + r - dy)) * surface->pitch + x * BPP;
-        Uint8 *target_pixel_b = (Uint8 *)surface->pixels + ((int)(cy - r + dy)) * surface->pitch + x * BPP;
+        /*Uint8 *target_pixel_a = (Uint8 *)surface->pixels + ((int)(cy + r - dy)) * surface->pitch + x * BPP;
+        Uint8 *target_pixel_b = (Uint8 *)surface->pixels + ((int)(cy - r + dy)) * surface->pitch + x * BPP;*/
         for (; x <= cx + dx; x++){
             sdlset_pixel(surface,x,cy+r-dy,pixel);
             sdlset_pixel(surface,x,cy-r+dy,pixel);
@@ -266,17 +268,32 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
     int i,j;
     int miny = y+h;
     int minx = x+w;
+    int ii,e,xlen,ylen;
     if(miny > Screen->h) miny=Screen->h;
     if(minx > Screen->w) minx=Screen->w;
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
+#if 0 
     for(j=y; j<miny; ++j) {
         for(i=x; i<minx; ++i) {
             sdlset_pixel_nocheck(Screen,i,j,*pixels);
             ++pixels;
         }
     }
+#else
+    xlen=minx-x; ylen=miny-y;
+    e=xlen*ylen;
+#pragma omp parallel for firstprivate(pixels,Screen,xlen,x,y)
+       for(ii=0; ii<e; ++ii) {
+           int i2,j2;
+           i2=(ii%xlen)+x;
+           j2=(ii/xlen)+y;
+           sdlset_pixel_nocheck(Screen,i2,j2,pixels[ii]);
+       }
+
+#endif
+
     SDL_UnlockSurface(Screen);
 
 }
@@ -284,22 +301,37 @@ static void sdldrawpixels_transkey(SDL_Surface *Screen,Uint32* pixels, int x, in
     int i,j;
     int miny = y+h;
     int minx = x+w;
+    int ii,e;
+    int xlen,ylen;
     if(miny > Screen->h) miny=Screen->h;
     if(minx > Screen->w) minx=Screen->w;
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
+#if 0
     for(j=y; j<miny; ++j) {
         for(i=x; i<minx; ++i) {
             sdlset_pixel_nocheck2(Screen,i,j,*pixels,transkey);
             ++pixels;
         }
     }
+#else
+    xlen=minx-x; ylen=miny-y;
+    e=xlen*ylen;
+#pragma omp parallel for firstprivate(pixels,transkey,Screen,xlen,x,y)
+       for(ii=0; ii<e; ++ii) {
+           int i2,j2;
+           i2=(ii%xlen)+x;
+           j2=(ii/xlen)+y;
+           sdlset_pixel_nocheck2(Screen,i2,j2,pixels[ii],transkey);
+       }
+
+#endif
     SDL_UnlockSurface(Screen);
 
 }
 static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 color) {
-    int i,j;
+    int i,j,ii,e,xlen,ylen;
     int miny = y+h;
     int minx = x+w;
     if(miny > Screen->h) miny=Screen->h;
@@ -307,6 +339,7 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
+#if 0
     for(j=y; j<miny ; ++j) {
         for(i=x; i<minx; ++i) {
            
@@ -314,6 +347,19 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
            
         }
     }
+#else
+    xlen=minx-x; ylen=miny-y;
+    e=xlen*ylen;
+#pragma omp parallel for firstprivate(Screen,xlen,x,y,color)
+       for(ii=0; ii<e; ++ii) {
+           int i2,j2;
+           i2=(ii%xlen)+x;
+           j2=(ii/xlen)+y;
+           sdlset_pixel(Screen,i,j,color);
+       }
+
+#endif
+
     SDL_UnlockSurface(Screen);
 }
 
@@ -1087,13 +1133,19 @@ void fillxy(int x,int y,int color){
 void stretchpixels(const int* pixels,int w,int h,int* output,int w2,int h2){
     float dw=((float)w2)/w;
     float dh=((float)h2)/h;
-    float i,j;
-    for(j=0; j<h2; j+=1){
-        for(i=0; i<w2; i+=1){
-            int origi=(int)(i/dw);
-            int origj=(int)(j/dh);
-            output[(int)(j*w2+i)]=pixels[(int)(origj*w+origi)];
-        }
+    int ii,e;
+    e=h2*w2;
+#pragma omp parallel for firstprivate(output,pixels,dw,dh)
+    for(ii=0; ii<e; ii+=1){
+        int origi,origj;
+        float i=ii%w2;
+        float j=ii/w2;
+    //for(j=0; j<h2; j+=1){
+        //for(i=0; i<w2; i+=1){
+        origi=(int)(i/dw);
+        origj=(int)(j/dh);
+        output[(int)(j*w2+i)]=pixels[(int)(origj*w+origi)];
+        //}
     }
 }
 void stretchpixels2(int** pixels,int w,int h,int w2,int h2){
