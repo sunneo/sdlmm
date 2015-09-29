@@ -355,7 +355,7 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
            int i2,j2;
            i2=(ii%xlen)+x;
            j2=(ii/xlen)+y;
-           sdlset_pixel(Screen,i,j,color);
+           sdlset_pixel(Screen,i2,j2,color);
        }
 
 #endif
