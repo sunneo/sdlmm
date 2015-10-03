@@ -42,7 +42,7 @@ static void (*sdlmotionfnc)(int,int,int);
 static void surface_to_array(SDL_Surface* img,int** ret,int*w, int* h) {
     int len,ih,iw;
     int* pret;
-    unsigned maxRange;
+    //unsigned maxRange;
     ih = img->h;
     iw = img->w;
     *w = iw;
@@ -153,7 +153,6 @@ void setusealpha(int usealpha){
 
 static void sdlset_pixel(SDL_Surface *surface, int x, int y, Uint32 pixel)
 {
-    Uint8* target_pixel;
     if(x >= surface->w || x < 0 ||y >=surface->h||y<0) return;   
     if(sdlUseAlpha){
         sdlset_pixel_nocheck_with_alpha(surface,x,y,pixel);
@@ -200,7 +199,7 @@ static void sdldraw_circle(SDL_Surface *surface, int n_cx, int n_cy, int radius,
 
 }
 static void sdlfill_circle(SDL_Surface *surface, int cx, int cy, int radius, Uint32 pixel){
-    static const int BPP = 4;
+    //static const int BPP = 4;
     double r = (double)radius;
     int idy;
     SDL_LockSurface(surface);
@@ -459,6 +458,16 @@ static void sdl_setcolor(int color) {
 
 void sdl_main_run() {
     SDL_Event event;
+    SDL_mutexP(drawqueue_mutex);
+    if(changeTitleReq != 0) {
+        SDL_WM_SetCaption(newTitle,NULL);
+        changeTitleReq = 0;
+    }
+    if(hasSetTextFontReq) {
+        do_settextfont(setTextFontReq.font,setTextFontReq.fontsize);
+        hasSetTextFontReq=  0;
+    }
+    SDL_mutexV(drawqueue_mutex);
     if(SDL_PollEvent(&event)) {
         if(event.type == SDL_QUIT) {
         /*    if(drawqueue_mutex){
@@ -487,16 +496,7 @@ void sdl_main_run() {
                 sdlmotionfnc(event.motion.x,event.motion.y,event.motion.state==SDL_PRESSED);
             }
         }
-        SDL_mutexP(drawqueue_mutex);
-        if(changeTitleReq != 0) {
-            SDL_WM_SetCaption(newTitle,NULL);
-            changeTitleReq = 0;
-        }
-        if(hasSetTextFontReq) {
-            do_settextfont(setTextFontReq.font,setTextFontReq.fontsize);
-            hasSetTextFontReq=  0;
-        }
-        SDL_mutexV(drawqueue_mutex);
+
         //SDL_CondSignal(init_cond);
     }
     SDL_Delay(1);
@@ -517,7 +517,7 @@ typedef struct AudioContext{
    int isFull;
    int hasAudio;
 }AudioContext;
-static volatile  AudioContext audioContext;
+static AudioContext audioContext;
 static void fill_audio(void *udata, Uint8 *stream, int len){
           /* Only play if we have data left */
         if ( audioContext.audio_len == 0 ) return;
@@ -732,7 +732,6 @@ void drawrect(int x,int y,int w,int h,int color) {
 }
 
 void fillrect(int x,int y,int w,int h,int color) {
-    SDL_Rect rect;
     SDL_mutexP(drawqueue_mutex);
     if(drawscreen) {
         sdlfillrect(drawscreen, x, y, w, h, color);
@@ -809,8 +808,8 @@ void screentitle(const char* title) {
 
 static SDL_Surface* CreateTextureFromFT_Bitmap(const FT_Bitmap* bitmap,int r,int g,int b){
     Uint32 rmask, gmask, bmask, amask;
-    void *buffer;
-    int pitch;
+    //void *buffer;
+    //int pitch;
     int x,y;
     unsigned char *src_pixels;
     unsigned int *target_pixels;
@@ -1015,6 +1014,7 @@ static int run_async_thread_runner(void* param){
     if(fnc){
         fnc(uparam);
     }
+    return 0;
 }
 
 int run_async(void (*fnc)(void*),void* param){
@@ -1155,6 +1155,66 @@ void stretchpixels2(int** pixels,int w,int h,int w2,int h2){
     free(org);
     *pixels=newbg;
 }
+
+
+typedef struct Mode7RenderConf{
+    float groundFactor;
+    float xFactor;
+    float yFactor;
+    int scanlineJump;
+}Mode7RenderConf;
+const static Mode7RenderConf mode7RenderDefaultConf={0.5, 1.5, 2, 1};
+void* mode7render_create_conf(float gf,float xf,float yf,int scanlineJump){
+    Mode7RenderConf* ret = (Mode7RenderConf*)malloc(sizeof(Mode7RenderConf));
+    ret->groundFactor=gf;
+    ret->xFactor=xf;
+    ret->yFactor=yf;
+    ret->scanlineJump=scanlineJump;
+    return (void*)ret;
+}
+static void mode7render_internal(float groundFactor,float xFac,float yFac,int scanlineJump,float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h) ;
+void mode7render(float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h){
+    mode7render_internal(0.5,1.5,2,1,angle,vx,vy,bg,bw,bh,tx,ty,w,h);
+}
+void mode7render2(void* mode,float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h){
+    Mode7RenderConf* cfg=(Mode7RenderConf*)mode;
+    if(mode==NULL){
+        mode7render(angle,vx,vy,bg,bw,bh,tx,ty,w,h);
+        return;
+    }
+    mode7render_internal(cfg->groundFactor,cfg->xFactor,cfg->yFactor,cfg->scanlineJump,angle,vx,vy,bg,bw,bh,tx,ty,w,h);
+}
+
+/**
+ * http://www.play-create.com/id.php?018
+ * Danel Brown's implementation
+ * Project HTML5 Mode7
+ */
+static void mode7render_internal(float groundFactor,float xFac,float yFac,int scanlineJump,float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h) {
+		float ca,sa,can,san;
+		int lev = w/scanlineJump;
+        int x;
+		ca=cos(angle)*48*groundFactor*xFac;
+		sa=sin(angle)*48*groundFactor*xFac;
+		can=cos(angle+3.1415926/2)*16*groundFactor*yFac;
+		san=sin(angle+3.1415926/2)*16*groundFactor*yFac;	
+#pragma omp parallel for firstprivate(scanlineJump,lev,can,san,h,vx,vy,bg,drawscreen)
+		for ( x=0;x<lev;++x) {
+		    int y;
+			float xr = -(((float)x/lev)-0.5);
+			float cax = (ca*xr)+can;
+			float sax = (sa*xr)+san;
+			for (y=0;y<h;++y) {
+				float zf=((float)h)/y;
+				int xd = (int)(vx+zf*cax);
+				int yd = (int)(vy+zf*sax);
+				if(yd<bh && xd < bw && yd>0 && xd > 0){
+				    sdlset_pixel(drawscreen,tx+(x * scanlineJump),y+ty,bg[yd*bw+xd]);
+				}
+			}
+		}
+}
+
 void post_async(void (*fnc)(void*),void* param){
     int prevCnt = 0;
     if(!postAsyncQueue.mutex){

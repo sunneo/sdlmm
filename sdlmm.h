@@ -2,11 +2,19 @@
 #define SDLMM_H_
 
 
-
+///////////////////////////////////////////////////////////
+///  init
+//////////////////////////////////////////////////////////
 void screen(int width,int height);
+//////////////////////////////
+///  set title
+////////////////////////////
 void screentitle(const char* title);
 void setalwaysflush(int doflush);
 void setusealpha(int usealpha);
+/////////////////////////////
+////  vsync  (flush content to screen)
+////////////////////////////
 void flushscreen();
 
 
@@ -24,8 +32,19 @@ void drawpixels2(int* pixels,int x,int y,int w,int h,int transkey);
 //load picture
 void loadimage(const char* filename,int** ret,int* w,int *h);
 void copyscreen(int** ret,int x,int y,int w,int h);
-///////////////////////////////////////////////////////////
+// stretch pixels
+void stretchpixels(const int* pixels,int w,int h,int* output,int w2,int h2);
+void stretchpixels2(int** pixels,int w,int h,int w2,int h2);
 
+
+///  mode7 rendering (for pixels only, see examples/mode7.c)
+void mode7render(float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h);
+///  create a configure for detail mode7 rendering 
+///  groundFactor: How close is ground to camera
+///  scanline
+void* mode7render_create_conf(float groundFactor,float xFactor,float yFactor,int scanlineJump);
+/// use configure to render
+void mode7render2(void* mode,float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h);
 
 ///////////////////////////////////////////////////////
 // directly playwave (44100Hz, 2 channels)
@@ -33,8 +52,6 @@ void playwave(short* wave,int len);
 //load wave file
 void loadwav(const char* filename, short** wav,unsigned int* len );
 //////////////////////////////////////////////////////
-
-
 
 /// text //////////////////////////////////////////////////
 void settextfont(const char* font,int fontsize);

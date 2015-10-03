@@ -1,23 +1,22 @@
 # Project: sdlmm
-# Makefile created by Dev-C++ 5.4.0
+# Makefile created by Dev-C++ 5.7.1
 
 CPP      = g++.exe -D__DEBUG__
 CC       = gcc.exe -D__DEBUG__
 WINDRES  = windres.exe
-OBJ      = obj/test.o obj/sdlmm.o obj/animation.o $(RES)
-LINKOBJ  = obj/test.o obj/sdlmm.o obj/animation.o $(RES)
-LIBS     = -L"C:/Program Files (x86)/Dev-Cpp/MinGW32/lib" -static-libstdc++ -static-libgcc -L"lib" lib/libfreetype.dll.a lib/libSDL2_image.dll.a lib/libSDL2_ttf.dll.a lib/SDL.dll  -g3
-INCS     = -I"C:/Program Files (x86)/Dev-Cpp/MinGW32/include" -I"include" -I"include/SDL" -I"include/freetype2"
-CXXINCS  = -I"C:/Program Files (x86)/Dev-Cpp/MinGW32/include" -I"include" -I"include/SDL" -I"include/freetype2"
+OBJ      = obj/test.o obj/sdlmm.o
+LINKOBJ  = obj/test.o obj/sdlmm.o
+LIBS     = -L"F:/Dev-Cpp/MinGW32/lib" -L"F:/Dev-Cpp/MinGW32/mingw32/lib" -static-libstdc++ -static-libgcc -L"lib" lib/libfreetype.dll.a lib/libSDL2_image.dll.a lib/libSDL2_ttf.dll.a lib/SDL.dll -lgomp -g3
+INCS     = -I"F:/Dev-Cpp/MinGW32/include" -I"F:/Dev-Cpp/MinGW32/mingw32/include" -I"F:/Dev-Cpp/MinGW32/lib/gcc/mingw32/4.8.1/include" -I"include" -I"include/SDL" -I"include/freetype2"
+CXXINCS  = -I"F:/Dev-Cpp/MinGW32/include" -I"F:/Dev-Cpp/MinGW32/mingw32/include" -I"F:/Dev-Cpp/MinGW32/lib/gcc/mingw32/4.8.1/include" -I"F:/Dev-Cpp/MinGW32/lib/gcc/mingw32/4.8.1/include/c++" -I"include" -I"include/SDL" -I"include/freetype2"
 BIN      = bin/sdlmm.exe
-CXXFLAGS = $(CXXINCS)  -Ofast -g3
-CFLAGS   = $(INCS)  -Ofast -g3
-RM       = rm -f
+CXXFLAGS = $(CXXINCS) -march=native -O3 -g3
+CFLAGS   = $(INCS) -march=native -O3 -g3 -fopenmp
+RM       = rm.exe -f
 
 .PHONY: all all-before all-after clean clean-custom
 
 all: all-before $(BIN) all-after
-
 
 clean: clean-custom
 	${RM} $(OBJ) $(BIN)
@@ -30,6 +29,3 @@ obj/test.o: test.c
 
 obj/sdlmm.o: src/sdlmm.c
 	$(CC) -c src/sdlmm.c -o obj/sdlmm.o $(CFLAGS)
-
-obj/animation.o: exams/animation.c
-	$(CC) -c exams/animation.c -o obj/animation.o $(CFLAGS)

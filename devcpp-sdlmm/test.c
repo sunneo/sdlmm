@@ -2,352 +2,80 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#define MAX_BUILD 5
-static const int buildWidth=128;
-static const int buildHeight=128;
-static const int launcherWidth=128;
-static const int launcherHeight=128;
-static const int width=800;
-static const int height=600;
-static const int maxRadius=32;
-static const int maxMissile=16;
-static int score=0;
-static int remainMissile=45;
-static int remainGenEnermy=40;
-static int remainEnermy=40;
-static int maxEnemyMissile=15;
-static int* buildTex[2];
-static int* missileTex;
-static int* launcherTex[5];
+#include <math.h>
+static const int width=1024;
+static const int height=768;
 static int* bg;
-volatile static int mx=0;
-volatile static int my=0;
+static int* bg_small;
+static volatile int mx,my,vx=1440,vy=1440,bh,bw,ox,oy;
+static int UP,LEFT,DOWN,RIGHT,TLEFT,TRIGHT;
+static char msg[1024];
+static float angle = 0;
 
-#define MAX_ENERMY_SPEED 2
-
-typedef struct Missile{
-    int fx,fy,tx,ty;
-    float x,y,dx,dy;
-    int alive,expl,r,targetBuild,ishit;
-}Missile;
-
-typedef struct OurLaunchedMissile{
-    int tx,ty,r,active,expl;
-    float x,y,dx,dy;
-}OurLaunchedMissile;
-
-typedef struct Build{
-    int left, top, right, bottom, alive,isbuild;
-}Build;
-
-static Build build[MAX_BUILD];
-static Missile enermy[20];
-static OurLaunchedMissile launchedMissile[16];
-
-static float frand(){
-   return ((float)rand())/RAND_MAX;
-}
-static void draw_enermy(){
-   int i;
-   for(i=0; i<20; ++i){
-       if(!enermy[i].alive) continue;
-       if(enermy[i].expl){
-           fillcircle(enermy[i].x,enermy[i].y,enermy[i].r,((rand()<<i) &0xffee00)|0xf0f000);
-       }
-       else{
-           drawline(enermy[i].fx,enermy[i].fy,enermy[i].x,enermy[i].y,0x0000ff);
-           drawline(enermy[i].fx-1,enermy[i].fy,enermy[i].x,enermy[i].y,0x0000bb);
-           drawline(enermy[i].fx+1,enermy[i].fy,enermy[i].x,enermy[i].y,0x0000aa);
-           //drawcircle(enermy[i].fx,enermy[i].fy,enermy[i].r,0xff0000);
-           fillcircle(enermy[i].x,enermy[i].y,enermy[i].r+1,0xffff00);
-           drawcircle(enermy[i].x,enermy[i].y,enermy[i].r,0xff0000);
-       }
-   }
-}
-
-static void update_enermy(){
-   int i;
-   for(i=0; i<20; ++i){
-       if(!enermy[i].alive) continue;
-       if(enermy[i].expl){
-           if(enermy[i].r >= maxRadius*2){
-               enermy[i].alive=0;
-               enermy[i].ishit = 0;
-               enermy[i].expl = 0;
-               if(remainEnermy-1>=0)
-                  --remainEnermy;
-           }
-           enermy[i].r+=2;
-       }
-       else{
-           {
-               int j;
-               for(j=0; j<16; ++j){
-                   if(!launchedMissile[j].active) continue;
-                   if(launchedMissile[j].expl){
-                       float distX = (enermy[i].x - launchedMissile[j].x);
-                       float distY = (enermy[i].y - launchedMissile[j].y);
-                       if(distX*distX+distY*distY < launchedMissile[j].r*launchedMissile[j].r){
-                           enermy[i].expl = 1;
-                           enermy[i].ishit = 1;
-                           score+=100;
-                           return;
-                       }
-                   }
-               }
-               for(j=0; j<20; ++j){
-                   if(j == i) continue;
-                   if(!enermy[j].alive) continue;
-                   if(!enermy[j].expl) continue;
-                   if(!enermy[j].ishit) continue;
-                   float distX = (enermy[i].x - enermy[j].x);
-                   float distY = (enermy[i].y - enermy[j].y);
-                   if(distX*distX+distY*distY < enermy[j].r*enermy[j].r){
-                       enermy[i].expl = 1;
-                       enermy[i].ishit = 1;
-                       score+=100;
-                       return;
-                   }
-               }
-           }
-           enermy[i].x+=enermy[i].dx;
-           enermy[i].y+=enermy[i].dy;
-           if( (int)(enermy[i].tx  - enermy[i].x) <= 0 && 0 >= (int)(enermy[i].ty  - enermy[i].y)){
-               enermy[i].expl = 1;
-               build[enermy[i].targetBuild].alive = 0;
-           }
-       }
-   } 
-}
-
-static void generate_enermy(){
-    if(remainGenEnermy > 0){
-        int currentAlive=0;
-        int i;
-        for(i=0; i<20; ++i){
-            if(currentAlive >= maxEnemyMissile) break;
-            if(enermy[i].alive){
-               ++currentAlive;
-               continue;
-            }
-            else{
-               int targetIdx,sx,sy,tx,ty;
-               targetIdx=(rand()%MAX_BUILD);
-               sx = (rand() % width); sy = 0;
-               tx = (build[targetIdx].left+build[targetIdx].right)/2;
-               ty = build[targetIdx].top;
-               int enermySpeed=(rand() % MAX_ENERMY_SPEED);
-               if(enermySpeed == 0) enermySpeed = 1;
-               float dx = ((float)(tx-sx)) / (1024/enermySpeed);
-               float dy = ((float)(ty-sy)) / (1024/enermySpeed);
-               enermy[i].x = enermy[i].fx = sx;
-               enermy[i].y = enermy[i].fy = sy;
-               enermy[i].dx = dx;
-               enermy[i].dy = dy;
-               enermy[i].tx = tx;
-               enermy[i].ty = ty;
-               enermy[i].expl = 0;
-               enermy[i].alive = 1;
-               enermy[i].r = 2;
-               enermy[i].targetBuild = targetIdx;
-               ++currentAlive;
-               --remainGenEnermy;
-               if(remainGenEnermy==0) return;
-            }
-        }
-   }
-}
-
-static void draw_launcher(int x,int y){
-   int split=width/MAX_BUILD;
-   int idx=mx/split;
-   int padding=16;
-   if(idx < 0) idx = 0;
-   if(idx > 4) idx = 4;
-   drawpixels2(launcherTex[idx], padding+x,y,launcherWidth,launcherHeight,0xff0000);
-}
-static void stretch_loadimage(const char* fname, int** pixels,int* w,int* h,int w2,int h2){
-    loadimage(fname,pixels,w,h);
-    stretchpixels2(pixels,*w,*h,w2,h2);
-}
-
-static void load_tex(){
-   int dummy1,dummy2;  
-   stretch_loadimage("missile-command/img/Lucid-burn400x300.bmp",&bg,&dummy1,&dummy2,width,height);
-   stretch_loadimage("missile-command/img/build0.bmp",&buildTex[0],&dummy1,&dummy2,buildWidth,buildHeight);
-   stretch_loadimage("missile-command/img/build.bmp",&buildTex[1],&dummy1,&dummy2,buildWidth,buildHeight);   
-   stretch_loadimage("missile-command/img/launcher-L2.bmp",&launcherTex[0],&dummy1,&dummy2,launcherWidth,launcherHeight);
-   stretch_loadimage("missile-command/img/launcher-L1.bmp",&launcherTex[1],&dummy1,&dummy2,launcherWidth,launcherHeight);
-   stretch_loadimage("missile-command/img/launcher.bmp",&launcherTex[2],&dummy1,&dummy2,launcherWidth,launcherHeight);
-   stretch_loadimage("missile-command/img/launcher-R1.bmp",&launcherTex[3],&dummy1,&dummy2,launcherWidth,launcherHeight);
-   stretch_loadimage("missile-command/img/launcher-R2.bmp",&launcherTex[4],&dummy1,&dummy2,launcherWidth,launcherHeight);
-   loadimage("missile-command/img/missile.bmp",&missileTex,&dummy1,&dummy2);
-}
-
-static void init_build(int cnt){
-   int i;
-   int padding=10;
-   int buildtop = height-buildHeight;
-   for(i=0; i<cnt; ++i){
-      build[i].left = (padding+buildWidth)*i;
-      build[i].top = buildtop;
-      build[i].right = build[i].left+buildWidth;
-      build[i].bottom = height;
-      build[i].alive = 1;
-      build[i].isbuild=1;
-   }
-   build[cnt/2].isbuild=0;
-   build[cnt/2].top = height-launcherHeight;
-}
-
-static void draw_build(int cnt){
-   int i;
-   for(i=0; i<cnt; ++i){
-      if(build[i].isbuild){
-          drawpixels2(buildTex[build[i].alive],build[i].left,build[i].top,buildWidth,buildHeight,0xff0000);
-      }
-      else{
-          draw_launcher(build[i].left,build[i].top);
-      }
-   }
-}
-
-static void update_missile(){
-    int i;
-    for(i=0; i<maxMissile; ++i){
-        if(!launchedMissile[i].active) continue;
-        if(!launchedMissile[i].expl){
-           if((int)(launchedMissile[i].tx - launchedMissile[i].x) == 0 && 0 == (int)(launchedMissile[i].ty-launchedMissile[i].y)){
-               launchedMissile[i].expl=1;
-           }
-           launchedMissile[i].x+=launchedMissile[i].dx;
-           launchedMissile[i].y+=launchedMissile[i].dy;
-        }
-        else{
-           if(launchedMissile[i].r < maxRadius){
-              ++launchedMissile[i].r;
-           }
-           else{
-              launchedMissile[i].active=0;
-              launchedMissile[i].expl=0;
-           }
-        }
-    }
-}
-static void drawMessage(){
-    char cscore[256];
-    char cmissile[256];
-    char cenermy[256];
-    sprintf(cscore,"Score:%-04d",score);
-    sprintf(cmissile,":%04d",remainMissile);
-    sprintf(cenermy,"Enermy:%03d/%03d",remainEnermy,remainGenEnermy);
-    drawtext(cscore,0,0,0xffffff);
-    drawpixels2(missileTex,width-80-16,24,16,64,0xff0000);
-    drawtext(cmissile,width-80,24,0xffffff);
-    drawtext(cenermy,width-200,0,0xffffff);
-}
-static void draw_missile(){
-    int i;
-    for(i=0; i<maxMissile; ++i){
-        if(!launchedMissile[i].active) continue;
-        if(!launchedMissile[i].expl){
-           float dx=launchedMissile[i].dx;
-           float dy=launchedMissile[i].dy;
-           int j;
-           fillcircle(launchedMissile[i].x,launchedMissile[i].y,launchedMissile[i].r,0xffff00);
-           for(j=0; j<8; ++j){
-              fillcircle(launchedMissile[i].x-j*dx,launchedMissile[i].y-j*dy,launchedMissile[i].r+j,0xffffff-0x101010*(j+1));
-           }
-           
-        }
-        else{
-           fillcircle(launchedMissile[i].x,launchedMissile[i].y,launchedMissile[i].r,rand()<<9); 
-        }
-    }
-}
-static void reinit(){
-    if(remainEnermy <= 0 && remainGenEnermy <= 0){
-         init_build(MAX_BUILD);
-         remainEnermy=40;
-         remainGenEnermy=40;
-         remainMissile = 45;
-    }
-}
 static void drawfnc(){
-    //fillrect(0,0,width,height,0x2200dd);
-    reinit();
-    drawpixels(bg,0,0,width,height);
-    draw_build(MAX_BUILD);
-    draw_missile();
-    draw_enermy();
-    update_missile();
-    update_enermy();
-    drawMessage();
-    if(rand() % 100 < 20) generate_enermy();
+    fillrect(0,0,width,height,0xcccccc);
+    mode7render(angle,vx,vy,bg,bw,bh,0,height/2,width,500);
+    
+    drawpixels(bg_small,width-400,0,400,400);
+    fillcircle(width-400+400*(((double)vx)/bw),400*(((double)vy)/bh),5,0xffffff);
+    fillcircle(width-400+400*(((double)vx)/bw),400*(((double)vy)/bh),3,0x0000ff);
+    
+    
+    fillrect(0,0,100,22,0xffffff);
+    sprintf(msg,"%-4d,%-4d,vx=%-3d,vy=%-3d,angle=%-5.2f", mx,my,vx,vy,angle);
+    drawtext(msg,0,0,0x0);
     flushscreen();
-    delay(16);
-}
-void onmotion(int x,int y,int on){
-    mx = x;
-    my = y;
-}
-static void generate_missile(int mx,int my){
-    int i;
-    if(remainMissile <= 0) return;
-    for(i=0; i<maxMissile; ++i){
-        if(!launchedMissile[i].active){
-            int sx = build[2].left+32;
-            int sy = build[2].top;
-            float dx = ((float)(mx-sx))/50;
-            float dy = ((float)(my-sy))/50;
-            launchedMissile[i].active = 1;
-            launchedMissile[i].x = sx;
-            launchedMissile[i].y = sy;
-            launchedMissile[i].r = 3;
-            launchedMissile[i].tx = mx;
-            launchedMissile[i].ty = my;               
-            launchedMissile[i].dx = dx;
-            launchedMissile[i].dy = dy;
-            launchedMissile[i].expl=0;
-            --remainMissile;
-            break;
-        }
-    }
+    delay(15);
 }
 
-static void onmouse(int x,int y,int on,int btn){
-    mx = x;
-    my = y;
-    if(on){
-       generate_missile(mx,my);   
+static void handlekb(){
+    static float delta=5;
+	float s = ((float)((height/2)-my)/(height/2))*2*delta;
+	if(ox < mx) TLEFT=1;
+	else if(ox > mx) TRIGHT=1;
+	else if(ox==mx) TLEFT=TRIGHT=0;
+	ox=mx;
+	
+    if(LEFT) vx -= delta;//sin(-angle+3.1415926)*s;
+	if(RIGHT) vx += delta;//sin(-angle+3.1415926)*s;
+	if(UP)vy += delta;//cos(-angle+3.1415926)*s;
+	if(DOWN) vy -= delta;//cos(-angle+3.1415926)*s;
+	if(vy<100) vy=100;
+	if(vy>bh-100) vy=bh-100;
+	if(vx > bw-100) vx=bw-100;
+	if(vx < 100) vx=100;
+    if(TLEFT)angle -= /*(mx - width/2)*/0.01*delta;
+    if(TRIGHT)angle += /*(mx - width/2)*/0.01*delta;
+}
+static void kb(int k,int c,int o){
+    switch(k){
+        case 'W':case 'w': UP=o; break;
+        case 'A':case 'a': LEFT=o; break;
+        case 'S':case 's': DOWN=o; break;
+        case 'D':case 'd': RIGHT=o; break;
+        case 'O':case 'o': TLEFT=o; break;
+        case 'P':case 'p': TRIGHT=o; break;
     }
 }
-/*
-static void void onkeyfnc(int key,int ctrl,int on){
-    
-}*/
-static void musicPlayer(void* p){
-    short* wav;
-    unsigned int len;
-    loadwav("missile-command/sfx/music.wav",&wav,&len);
-    while(1){
-       playwave(wav,len);
-   }
-    free(wav);
+static void mouse(int x,int y,int on){
+    ox=mx;
+    oy=my;
+    mx=x;
+    my=y;
 }
 int main(int argc, char** argv){
-   //screen_msg_loop(width,height,"Missile Command [demo]");
    screen(width,height);
-   screentitle("Missile Command [demo]");
-   setonmotion(onmotion);
-   setonmouse(onmouse);
-   settextfont("missile-command/fnt/FreeMono.ttf",20);
-   load_tex();
-   init_build(MAX_BUILD);
-   run_async(musicPlayer,NULL);
+   screentitle("Mode7 Demo");
+   setonkey(kb);
+   setonmotion(mouse);
+   settextfont("FreeMono.ttf",20);
+   loadimage("g.bmp",&bg,&bw,&bh);
+   loadimage("g.bmp",&bg_small,&bw,&bh);
+   stretchpixels2(&bg_small,bw,bh,400,400);
+   
    while(1){
+       handlekb();
        drawfnc();
    }
-   //start_main_drawfnc(drawfnc);
 }
 
