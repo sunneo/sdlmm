@@ -9,6 +9,11 @@ static int* bg;
 static int* bg_small;
 static volatile int mx,my,vx=1440,vy=1440,bh,bw,ox,oy;
 static int UP,LEFT,DOWN,RIGHT,TLEFT,TRIGHT;
+#define VK_UP 273
+#define VK_LEFT 276
+#define VK_DOWN 274
+#define VK_RIGHT 275
+
 static char msg[1024];
 static float angle = 0;
 
@@ -36,15 +41,12 @@ static void drawfnc(){
 
 static void handlekb(){
     static float delta=5;
-    
     int deltaX=abs(ox-mx);
-	float s = ((float)((height/2)-my)/(height/2))*2*delta;
 	if(ox < mx) TLEFT=1;
 	else if(ox > mx) TRIGHT=1;
-	
 	// First Shooting View
 	if(UP || DOWN){
-	    float sY=cos(angle)*delta;
+	    float sY=cos(fabs(angle))*delta;
         float sX=sin(fabs(angle))*delta;
 	    vx+=sX*(DOWN?1:-1);
 	    vy+=sY*(DOWN?-1:1); 
@@ -60,20 +62,23 @@ static void handlekb(){
 	if(vy>bh-100) vy=bh-100;
 	if(vx > bw-100) vx=bw-100;
 	if(vx < 100) vx=100;
-    if(TLEFT)angle += /*(mx - width/2)*/deltaX*0.01*delta;
+	
+    if(TLEFT) angle += /*(mx - width/2)*/deltaX*0.01*delta;
     if(TRIGHT)angle -= /*(mx - width/2)*/deltaX*0.01*delta;
     if(ox==mx) TLEFT=TRIGHT=0;
+    
+    if(angle > 2 * 3.1415926) angle -=3.1415926*2;
+    if(angle < 0) angle = 3.1415926*2-angle;
 	ox=mx;
 }
 static void kb(int k,int c,int o){
     switch(k){
-        case 273:case 'W':case 'w': UP=o; break;
-        case 276: case 'A':case 'a': LEFT=o; break;
-        case 275: case 'S':case 's': DOWN=o; break;
-        case 274: case 'D':case 'd': RIGHT=o; break;
+        case VK_UP:case 'W':case 'w': UP=o; break;
+        case VK_LEFT: case 'A':case 'a': LEFT=o; break;
+        case VK_DOWN:  case 'S':case 's': DOWN=o; break;
+        case VK_RIGHT: case 'D':case 'd': RIGHT=o; break;
         case 'O':case 'o': TLEFT=o; break;
         case 'P':case 'p': TRIGHT=o; break;
-        
     }
 }
 static void mouse(int x,int y,int on){
