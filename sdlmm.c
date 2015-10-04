@@ -1190,7 +1190,12 @@ void mode7render2(void* mode,float angle,int vx,int vy,int* bg,int bw,int bh,int
  * Danel Brown's implementation
  * Project HTML5 Mode7
  */
-static void mode7render_internal(float groundFactor,float xFac,float yFac,int scanlineJump,float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h) {
+static void mode7render_internal(
+    float groundFactor,float xFac,float yFac,
+    int scanlineJump,
+    float angle,int vx,int vy,
+    int* bg,int bw,int bh,
+    int tx,int ty,int w,int h) {
 		float ca,sa,can,san;
 		int lev = w/scanlineJump;
         int x;
@@ -1214,6 +1219,52 @@ static void mode7render_internal(float groundFactor,float xFac,float yFac,int sc
 			}
 		}
 }
+
+static __inline int imin(int a,int b){ return a>b?b:a; }
+static __inline int imax(int a,int b){ return a>b?a:b; }
+static int clamp(int value, int lower_bound, int upper_bound) {
+    return imin(imax(value, lower_bound), upper_bound);
+}
+#if 0 
+/*
+template <typename T>
+struct Image {
+    Image(T* data, size_t rows, size_t cols) : 
+        data_(data), rows_(rows), cols_(cols) {}
+    T* data_;
+    size_t rows_;
+    size_t cols_;
+    T& operator()(size_t row, size_t col) {
+        return data_[col + row * cols_];
+    }
+ };
+ */
+
+
+
+void rotate_image(Image const &src, Image &dst, float ang) {
+    // Affine transformation matrix 
+    // H = [a, b, c]
+    //     [d, e, f]
+
+    // Remember, we are transforming from destination to source, 
+    // thus the negated angle. 
+    float H[] = {cos(-ang), -sin(-ang), dst.cols_/2 - src.cols_*cos(-ang)/2,
+                 sin(-ang),  cos(-ang), dst.rows_/2 - src.rows_*cos(-ang)/2}; 
+    for (size_t row = 0; row < dst.rows_; ++row) {
+       for (size_t col = 0; col < dst.cols_; ++cols) {
+           int src_col = round(H[0] * col + H[1] * row + H[2]);
+           src_col = clamp(src_col, 0, src.cols_ - 1);
+           int src_row = round(H[3] * col + H[4] * row + H[5]);
+           src_row = clamp(src_row, 0, src.rows_ - 1);               
+
+           dst(row, col) = src(src_row, src_col);
+       }
+    }
+}
+
+#endif
+
 
 void post_async(void (*fnc)(void*),void* param){
     int prevCnt = 0;
