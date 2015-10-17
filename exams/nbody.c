@@ -78,9 +78,6 @@ static void Nbody(int i,int sz,float* X_axis,float* Y_axis,float* newX_velocity,
     if(Y_Velocity[i] > MAX_Velocity) Y_Velocity[i] = (MIN_velocity+newY_velocity[i])/2;
     if(X_Velocity[i] < MIN_velocity) X_Velocity[i] = (MAX_Velocity+newX_velocity[i])/2;
     if(Y_Velocity[i] < MIN_velocity) Y_Velocity[i] = (MAX_Velocity+newY_velocity[i])/2;
-    newX_velocity[i]=newX_velocity[i];
-    newY_velocity[i]=newY_velocity[i];
-
 }
 
 static float* allocateBody(){
