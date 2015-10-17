@@ -6,9 +6,13 @@
 #include<omp.h>
 #define SCREENX 800
 #define SCREENY 600
+#define VSYNC 1
+#define HAS_SDLMM 1
+#ifdef HAS_SDLMM
 #include <sdlmm.h>
+#endif
 
-#define NUM_BODY 1024
+#define NUM_BODY 100
 int SZ=NUM_BODY;
 #define LOOP 500
 #define MAX_X_axis 800
@@ -20,8 +24,8 @@ int SZ=NUM_BODY;
 #define MAX_Mass 15
 #define MIN_Mass 10
 ////////////////////////////////////////////////////
-float *X_axis,*Y_axis,*X_Velocity,*Y_Velocity,*Mass;
-float *newX_velocity,*newY_velocity;
+float *X_axis,*Y_axis,*Z_axis,*X_Velocity,*Y_Velocity,*Z_Velocity,*Mass;
+float *newX_velocity,*newY_velocity,*newZ_velocity;
 int* bodyColor,* bodyRadius;
 #ifdef __linux__
 #include<sys/time.h>
@@ -43,41 +47,45 @@ static void Init_AllBody() {
     for(i=0; i<SZ; i++) {
         X_axis[i]=rand()%(MAX_X_axis-MIN_X_axis)+MIN_X_axis;
         Y_axis[i]=rand()%(MAX_Y_axis-MIN_Y_axis)+MIN_Y_axis;
+        Z_axis[i]=rand()%(MAX_Y_axis-MIN_Y_axis)+MIN_Y_axis;
         X_Velocity[i]=newX_velocity[i]=0;
         Y_Velocity[i]=newY_velocity[i]=0;
+        Z_Velocity[i]=newZ_velocity[i]=0;
         Mass[i]=rand()%(MAX_Mass-MIN_Mass)+MIN_Mass;
         bodyColor[i]=0xffff00|(int)(Mass[i]*60);
         bodyRadius[i]=Mass[i]/10+1;
     }
 }
 
-static void Nbody(int i,int sz,float* X_axis,float* Y_axis,float* newX_velocity,float* newY_velocity,const float* Mass) {
+static void Nbody(int i,int sz,float* X_axis,float* Y_axis,float* Z_axis,float* newX_velocity,float* newY_velocity,float* newZ_velocity,const float* Mass) {
     int j;
-    float sumX=0,sumY=0;
+    float sumX=0,sumY=0,sumZ=0;
 #define  Gravity_Coef 3.3 
     for(j=0; j<sz; j++) {
-        float X_position,Y_position;
+        float X_position,Y_position,Z_position;
         float Distance;
         float Force=0;
         if(j==i) continue;
         X_position=X_axis[j]-X_axis[i];
         Y_position=Y_axis[j]-Y_axis[i];
-        Distance=sqrt(X_position*X_position+Y_position*Y_position);
+        Z_position=Z_axis[j]-Z_axis[i];
+        Distance=sqrt(X_position*X_position+Y_position*Y_position+Z_position*Z_position);
         if(Distance==0) continue;
         Force= Gravity_Coef*Mass[i]/(Distance);
         sumX += Force*X_position/Distance;
         sumY += Force*Y_position/Distance;
+        sumZ += Force*Z_position/Distance;
     }
     newX_velocity[i]+=sumX;
     newY_velocity[i]+=sumY; 
-    X_axis[i]+=newX_velocity[i]*0.01;
-    Y_axis[i]+=newY_velocity[i]*0.01;
+    newZ_velocity[i]+=sumZ; 
+    X_axis[i]+=newX_velocity[i]*0.11;
+    Y_axis[i]+=newY_velocity[i]*0.11;
+    Z_axis[i]+=newZ_velocity[i]*0.11;
     X_Velocity[i]=newX_velocity[i];
     Y_Velocity[i]=newY_velocity[i];
-    if(X_Velocity[i] > MAX_Velocity) X_Velocity[i] = (MIN_velocity+newX_velocity[i])/2;
-    if(Y_Velocity[i] > MAX_Velocity) Y_Velocity[i] = (MIN_velocity+newY_velocity[i])/2;
-    if(X_Velocity[i] < MIN_velocity) X_Velocity[i] = (MAX_Velocity+newX_velocity[i])/2;
-    if(Y_Velocity[i] < MIN_velocity) Y_Velocity[i] = (MAX_Velocity+newY_velocity[i])/2;
+    Z_Velocity[i]=newZ_velocity[i];
+   
 }
 
 static float* allocateBody(){
@@ -90,25 +98,30 @@ static void freeBody(void* p){
    free(p);
 }
 
-static void drawBodys(int loop,int totalLoop,double fps){
+static void drawBodys(int loop,int totalLoop,double tm,float avgX,float avgY,float avgZ){
 #ifdef HAS_SDLMM
    int i;
    char buf[1024];
-   sprintf(buf,"[%-3d/%-3d] fps:%-3.3f",loop,totalLoop,fps);
+   sprintf(buf,"[%-3d/%-3d] tm:%-3.3f",loop,totalLoop,tm);
    fillrect(0,0,SCREENX,SCREENY,0);
    for(i=0; i<SZ;++i){
       int x,y,r,c;
-      if(X_axis[i] < 0 || X_axis[i] > SCREENX || Y_axis[i] < 0 || Y_axis[i] > SCREENY) continue;
-      x = X_axis[i]-bodyRadius[i];
-      y = Y_axis[i]-bodyRadius[i];
-      r = (((int)bodyRadius[i])&0xf);
+      //if(X_axis[i] < 0 || X_axis[i] > SCREENX || Y_axis[i] < 0 || Y_axis[i] > SCREENY) continue;
+      x = avgX-X_axis[i]-bodyRadius[i]+SCREENX/2;
+      y = avgY-Y_axis[i]-bodyRadius[i]+SCREENY/2;
+      r = 5*(Z_axis[i]/avgZ); //(((int)bodyRadius[i])&0xf);
+      if(r < 0 || r > 255 ) continue;
       c = bodyColor[i];
-      drawcircle(x,y,r+3,c|0x80808080);
-      fillcircle(x,y,r,c|0xD0D0D0D0);
+      fillcircle(x,y,r,0x00D0D0|(r*0xa0a000));
    }
    fillrect(0,0,200,20,0xffffff);
    drawtext(buf,0,0,0);
    flushscreen();
+   #if VSYNC == 1
+   if(tm <  1.0 / 60){
+       delay((int)((1.0/60)*1000-tm ));
+   }
+   #endif
 #endif
 }
 
@@ -117,20 +130,29 @@ static int main_run(int argc,char **argv) {
     double tmstart,tmend;
     double totalTime = 0.0;
     double fps_time_1,fps_time_2;
+    float avgX=0,avgY=0,avgZ=0;
     tmstart = getDoubleTime();
     Init_AllBody();
     for(loop=0; loop<LOOP; loop++) 
     {
         int i;
-        printf("loop %d\n",loop);
+        printf("loop %d (%f,%f)\n",loop,avgX,avgY);
+        avgX=0;avgY=0;avgZ=0; 
         fps_time_1=getDoubleTime();
-#pragma omp parallel for firstprivate(X_Velocity,Y_Velocity,newX_velocity,newY_velocity,X_axis,Y_axis,Mass,SZ)
+#pragma omp parallel for firstprivate(X_Velocity,Y_Velocity,Z_Velocity,newX_velocity,newY_velocity,newZ_velocity,X_axis,Y_axis,Z_axis,Mass,SZ) \
+         reduction(+:avgX,avgY,avgZ)
         for(i=0; i<SZ; i++) 
         {
-             Nbody(i,SZ,X_axis,Y_axis,newX_velocity,newY_velocity,Mass);
+             Nbody(i,SZ,X_axis,Y_axis,Z_axis,newX_velocity,newY_velocity,newZ_velocity,Mass);
+             avgX+=X_axis[i];
+             avgY+=Y_axis[i];
+             avgZ+=Z_axis[i];
         }
+        avgX/=SZ;
+        avgY/=SZ;
+        avgZ/=SZ;
         fps_time_2 = getDoubleTime();
-        drawBodys(loop,LOOP,1/(fps_time_2-fps_time_1));
+        drawBodys(loop,LOOP,fps_time_2-fps_time_1,avgX,avgY,avgZ);
     }
     tmend = getDoubleTime();
     printf("%d %lf\n",NUM_BODY,tmend-tmstart);
@@ -144,18 +166,21 @@ int main(int argc,char** argv){
     }
     X_axis = allocateBody();  
     Y_axis = allocateBody();  
+    Z_axis = allocateBody();  
     X_Velocity = allocateBody();  
     Y_Velocity = allocateBody();
+    Z_Velocity = allocateBody();
     Mass = allocateBody();  
     newX_velocity = allocateBody();
     newY_velocity = allocateBody();
+    newZ_velocity = allocateBody();
     bodyColor = (int*)malloc(sizeof(int)*NUM_BODY);
     bodyRadius = (int*)malloc(sizeof(int)*NUM_BODY);
 #ifdef HAS_SDLMM
     //sdlmm = sdlmm_get_instance("libsdlmm.so");
     screen(SCREENX,SCREENY);
     screentitle("[GPU] NBody-Simulation");
-    settextfont("/usr/share/fonts/truetype/freefont/FreeSerif.ttf",16);
+    settextfont("FreeMono.ttf",16);
 #endif
     for(i=0; i<20; ++i){
        main_run(argc,argv);
@@ -171,4 +196,5 @@ int main(int argc,char** argv){
     free(bodyRadius);
     return 0;
 }
+
 
