@@ -12,7 +12,7 @@
 #include <sdlmm.h>
 #endif
 
-#define NUM_BODY 100
+#define NUM_BODY 1024
 int SZ=NUM_BODY;
 #define LOOP 500
 #define MAX_X_axis 800
@@ -26,7 +26,6 @@ int SZ=NUM_BODY;
 ////////////////////////////////////////////////////
 float *X_axis,*Y_axis,*Z_axis,*X_Velocity,*Y_Velocity,*Z_Velocity,*Mass;
 float *newX_velocity,*newY_velocity,*newZ_velocity;
-int* bodyColor,* bodyRadius;
 #ifdef __linux__
 #include<sys/time.h>
 #else
@@ -52,8 +51,6 @@ static void Init_AllBody() {
         Y_Velocity[i]=newY_velocity[i]=0;
         Z_Velocity[i]=newZ_velocity[i]=0;
         Mass[i]=rand()%(MAX_Mass-MIN_Mass)+MIN_Mass;
-        bodyColor[i]=0xffff00|(int)(Mass[i]*60);
-        bodyRadius[i]=Mass[i]/10+1;
     }
 }
 
@@ -101,22 +98,24 @@ static void freeBody(void* p){
 static void drawBodys(int loop,int totalLoop,double tm,float avgX,float avgY,float avgZ){
 #ifdef HAS_SDLMM
    int i;
+   double rendert1,rendert2;
    char buf[1024];
+   rendert1 = getDoubleTime();
    sprintf(buf,"[%-3d/%-3d] tm:%-3.3f",loop,totalLoop,tm);
    fillrect(0,0,SCREENX,SCREENY,0);
    for(i=0; i<SZ;++i){
       int x,y,r,c;
-      //if(X_axis[i] < 0 || X_axis[i] > SCREENX || Y_axis[i] < 0 || Y_axis[i] > SCREENY) continue;
-      x = avgX-X_axis[i]-bodyRadius[i]+SCREENX/2;
-      y = avgY-Y_axis[i]-bodyRadius[i]+SCREENY/2;
-      r = 5*(Z_axis[i]/avgZ); //(((int)bodyRadius[i])&0xf);
+      x = avgX-X_axis[i]+SCREENX/2;
+      y = avgY-Y_axis[i]+SCREENY/2;
+      r = 5*(Z_axis[i]/avgZ); 
       if(r < 0 || r > 255 ) continue;
-      c = bodyColor[i];
       fillcircle(x,y,r,0x00D0D0|(r*0xa0a000));
    }
    fillrect(0,0,200,20,0xffffff);
    drawtext(buf,0,0,0);
+   rendert2=getDoubleTime();
    flushscreen();
+   tm += (rendert2-rendert1);
    #if VSYNC == 1
    if(tm <  1.0 / 60){
        delay((int)((1.0/60)*1000-tm ));
@@ -139,8 +138,7 @@ static int main_run(int argc,char **argv) {
         printf("loop %d (%f,%f)\n",loop,avgX,avgY);
         avgX=0;avgY=0;avgZ=0; 
         fps_time_1=getDoubleTime();
-#pragma omp parallel for firstprivate(X_Velocity,Y_Velocity,Z_Velocity,newX_velocity,newY_velocity,newZ_velocity,X_axis,Y_axis,Z_axis,Mass,SZ) \
-         reduction(+:avgX,avgY,avgZ)
+#pragma omp parallel for firstprivate(X_Velocity,Y_Velocity,Z_Velocity,newX_velocity,newY_velocity,newZ_velocity,X_axis,Y_axis,Z_axis,Mass,SZ)  reduction(+:avgX,avgY,avgZ)
         for(i=0; i<SZ; i++) 
         {
              Nbody(i,SZ,X_axis,Y_axis,Z_axis,newX_velocity,newY_velocity,newZ_velocity,Mass);
@@ -174,8 +172,6 @@ int main(int argc,char** argv){
     newX_velocity = allocateBody();
     newY_velocity = allocateBody();
     newZ_velocity = allocateBody();
-    bodyColor = (int*)malloc(sizeof(int)*NUM_BODY);
-    bodyRadius = (int*)malloc(sizeof(int)*NUM_BODY);
 #ifdef HAS_SDLMM
     //sdlmm = sdlmm_get_instance("libsdlmm.so");
     screen(SCREENX,SCREENY);
@@ -192,8 +188,6 @@ int main(int argc,char** argv){
     freeBody(Mass );
     freeBody(newX_velocity );
     freeBody(newY_velocity );
-    free(bodyColor);
-    free(bodyRadius);
     return 0;
 }
 

@@ -203,7 +203,7 @@ static void sdlfill_circle(SDL_Surface *surface, int cx, int cy, int radius, Uin
     double r = (double)radius;
     int idy;
     SDL_LockSurface(surface);
-#pragma omp parallel for firstprivate(r,pixel,cx,cy,surface)
+//#pragma omp parallel for firstprivate(r,pixel,cx,cy,surface)
     for (idy = 1; idy <= radius; idy += 1){
         double dy = (double)idy;
         int dx = (int) floor(sqrt((2.0 * r * dy) - (dy * dy)));
@@ -273,7 +273,7 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
-#if 0 
+#if 1
     for(j=y; j<miny; ++j) {
         for(i=x; i<minx; ++i) {
             sdlset_pixel_nocheck(Screen,i,j,*pixels);
@@ -307,11 +307,11 @@ static void sdldrawpixels_transkey(SDL_Surface *Screen,Uint32* pixels, int x, in
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
-#if 0
+#if 1
     for(j=y; j<miny; ++j) {
         for(i=x; i<minx; ++i) {
-            sdlset_pixel_nocheck2(Screen,i,j,*pixels,transkey);
-            ++pixels;
+            sdlset_pixel_nocheck2(Screen,i,j,pixels[j*w+i],transkey);
+            //++pixels;
         }
     }
 #else
@@ -338,7 +338,7 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
-#if 0
+#if 1
     for(j=y; j<miny ; ++j) {
         for(i=x; i<minx; ++i) {
            
