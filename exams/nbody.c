@@ -6,13 +6,9 @@
 #include<omp.h>
 #define SCREENX 800
 #define SCREENY 600
-#ifdef HAS_SDLMM
 #include <sdlmm.h>
-#include "libsdlmmWrap.h"
-SDLMM* sdlmm;
-#endif
 
-#define NUM_BODY DEFSIZE
+#define NUM_BODY 1024
 int SZ=NUM_BODY;
 #define LOOP 500
 #define MAX_X_axis 800
