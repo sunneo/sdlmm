@@ -8,11 +8,14 @@
 #define SCREENY 600
 #define VSYNC 1
 #define HAS_SDLMM 1
+#define CENTRALIZE_SCREEN 1
+#define NUM_BODY 2000
+
 #ifdef HAS_SDLMM
 #include <sdlmm.h>
 #endif
 
-#define NUM_BODY 1024
+
 int SZ=NUM_BODY;
 #define LOOP 500
 #define MAX_X_axis 800
@@ -23,6 +26,7 @@ int SZ=NUM_BODY;
 #define MIN_velocity 1
 #define MAX_Mass 15
 #define MIN_Mass 10
+
 ////////////////////////////////////////////////////
 float *X_axis,*Y_axis,*Z_axis,*X_Velocity,*Y_Velocity,*Z_Velocity,*Mass;
 float *newX_velocity,*newY_velocity,*newZ_velocity;
@@ -105,8 +109,14 @@ static void drawBodys(int loop,int totalLoop,double tm,float avgX,float avgY,flo
    fillrect(0,0,SCREENX,SCREENY,0);
    for(i=0; i<SZ;++i){
       int x,y,r,c;
+      
+#if CENTRALIZE_SCREEN == 1
+      x = SCREENX/2*(X_axis[i]/avgX);
+      y = SCREENY/2*(Y_axis[i]/avgY);
+#else
       x = avgX-X_axis[i]+SCREENX/2;
       y = avgY-Y_axis[i]+SCREENY/2;
+#endif
       r = 5*(Z_axis[i]/avgZ); 
       if(r < 0 || r > 255 ) continue;
       fillcircle(x,y,r,0x00D0D0|(r*0xa0a000));
