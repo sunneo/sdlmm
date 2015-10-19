@@ -13,7 +13,9 @@ static void* dlsym_z(void* f,const char* name){
 }
 
 SDLMM* sdlmm_get_instance(const char* fname){  
-   void* dl = dlopen(fname,RTLD_LAZY);
+   void* dl = 0;
+   if(fname == NULL) fname="./libsdlmm.so";
+   dl = dlopen(fname,RTLD_LAZY);
    SDLMM* ret;
    if(!dl){
       fprintf(stderr,"%s(%s) failed: %s\n",__func__,fname,dlerror());
@@ -60,3 +62,44 @@ SDLMM* sdlmm_get_instance(const char* fname){
    return ret;
 
 }
+static SDLMM* defaultSDLMM;
+__inline static SDLMM* getInstance(){
+   if(!defaultSDLMM) defaultSDLMM=sdlmm_get_instance("./libsdlmm.so");
+   return defaultSDLMM;
+}
+void screen(int width,int height){   getInstance()->screen(width,height); }
+void screentitle(const char* title){ getInstance()->screentitle(title); }
+void setalwaysflush(int doflush){ getInstance()->setalwaysflush(doflush); }
+void setusealpha(int usealpha){ getInstance()->setusealpha(usealpha); }
+void flushscreen(){ getInstance()->flushscreen(); }
+void drawcircle(int x,int y,double r,int color){ getInstance()->drawcircle(x,y,r,color); }
+void drawpixel(int x,int y,int color){ getInstance()->drawpixel(x,y,color); } 
+void drawline(int x1,int y1,int x2,int y2,int color){ getInstance()->drawline(x1,y1,x2,y2,color); }
+void drawrect(int x,int y,int w,int h,int color){ getInstance()->drawrect(x,y,w,h,color); }
+void fillxy(int x,int y,int color){ getInstance()->fillxy(x,y,color); } 
+void fillrect(int x,int y,int w,int h,int color){ getInstance()->fillrect(x,y,w,h,color); } 
+void fillcircle(int x,int y,double r,int color){ getInstance()->fillcircle(x,y,r,color); }
+void drawpixels(int* pixels,int x,int y,int w,int h){ getInstance()->drawpixels(pixels,x,y,w,h); }
+void drawpixels2(int* pixels,int x,int y,int w,int h,int transkey){ getInstance()->drawpixels2(pixels,x,y,w,h,transkey);}
+void loadimage(const char* filename,int** ret,int* w,int *h){ getInstance()->loadimage(filename,ret,w,h); }
+void copyscreen(int** ret,int x,int y,int w,int h){ getInstance()->copyscreen(ret,x,y,w,h); }
+void stretchpixels(const int* pixels,int w,int h,int* output,int w2,int h2){ getInstance()->stretchpixels(pixels,w,h,output,w2,h2); }
+void stretchpixels2(int** pixels,int w,int h,int w2,int h2){ getInstance()->stretchpixels2(pixels,w,h,w2,h2); }
+void mode7render(float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h){ getInstance()->mode7render(angle,vx,vy,bg,bw,bh,tx,ty,w,h); }
+void* mode7render_create_conf(float groundFactor,float xFactor,float yFactor,int scanlineJump){ return getInstance()->mode7render_create_conf(groundFactor,xFactor,yFactor,scanlineJump); }
+void mode7render2(void* mode,float angle,int vx,int vy,int* bg,int bw,int bh,int tx,int ty,int w,int h){ getInstance()->mode7render2(mode,angle,vx,vy,bg,bw,bh,tx,ty,w,h); }
+void playwave(short* wave,int len){ getInstance()->playwave(wave,len); }
+void loadwav(const char* filename, short** wav,unsigned int* len ){ getInstance()->loadwav(filename,wav,len); }
+void settextfont(const char* font,int fontsize){ getInstance()->settextfont(font,fontsize); }
+void drawtext(const char* str,int x,int y,int color){ getInstance()->drawtext(str,x,y,color); }
+#include <wchar.h>
+void drawtextw(const wchar_t* str,int x,int y,int color){ getInstance()->drawtextw(str,x,y,color); }
+void setontouch(void (*fnc)(int x,int y,int on)){ getInstance()->setontouch(fnc); }
+void setonmotion(void (*fnc)(int x,int y,int on)){ getInstance()->setonmotion(fnc); }
+void setonmouse(void(*fnc)(int x,int y,int on,int btn)){getInstance()->setonmouse(fnc); }
+void setonkey(void(*fnc)(int key,int ctrl,int on)){getInstance()->setonkey(fnc); }
+int run_async(void (*fnc)(void*),void* param){getInstance()->run_async(fnc,param); }
+void post_async(void (*fnc)(void*),void* param){getInstance()->post_async(fnc,param); }
+void delay(int mills){getInstance()->delay(mills); }
+void screen_msg_loop(int width,int height,const char* title){getInstance()->screen_msg_loop(width,height,title); }
+void start_main_drawfnc(void(*fnc)()){getInstance()->start_main_drawfnc(fnc); }

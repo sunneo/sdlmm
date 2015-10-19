@@ -6,9 +6,8 @@
 #include<omp.h>
 #define SCREENX 800
 #define SCREENY 600
-#define VSYNC 1
 #define HAS_SDLMM 1
-#define SIZE 512
+#define SIZE 256
 
 #ifdef HAS_SDLMM
 #include <sdlmm.h>
@@ -18,7 +17,7 @@
 float *A,*B;
 int SZ=SIZE;
 int invert=0;
-int pause=0;
+int ispause=0;
 #ifdef __linux__
 #include<sys/time.h>
 #else
@@ -33,17 +32,18 @@ static double getDoubleTime() {
     return ((double)clock())/CLOCKS_PER_SEC;
 #endif
 }
-__inline static int isInBound(int y,int x,int sz){
+static int isInBound(int y,int x,int sz){
     return y >= 0 && y < sz && x >= 0 && x < sz;
 }
-__inline static float fetch(const float* a,int y,int x,int sz,int* cnt){
+static float fetch(const float* a,int y,int x,int sz,int* cnt){
     int inbound=isInBound(y,x,sz);
     *cnt += inbound;
     return a[(y*sz+x)*inbound]*inbound;
 }
 
-static void SOR(float* a,const float* B,int sz) {
+static void SOR(float* a,const float* b,int sz) {
     int i,e=sz*sz;
+#pragma omp parallel for firstprivate(a,b,sz)
     for(i=0; i<e; i++) {
         int x = i % sz;
         int y = i / sz;
@@ -55,10 +55,10 @@ static void SOR(float* a,const float* B,int sz) {
         if(x+1<sz){ s += B[y*sz+(x+1)]; ++cnt; }// right
         if(y+1<sz){ s += B[(y+1)*sz+x]; ++cnt; }// down
 #else
-        s+=fetch(B,y,x-1,sz,&cnt);
-        s+=fetch(B,y-1,x,sz,&cnt);
-        s+=fetch(B,y,x+1,sz,&cnt);
-        s+=fetch(B,y+1,x,sz,&cnt);
+        s+=fetch(b,y,x-1,sz,&cnt);
+        s+=fetch(b,y-1,x,sz,&cnt);
+        s+=fetch(b,y,x+1,sz,&cnt);
+        s+=fetch(b,y+1,x,sz,&cnt);
 #endif
         a[i] = s/cnt;
     }
@@ -108,6 +108,7 @@ static void drawMatrix(float* a,int loop,double tm){
    if(tm+t2 - t1 < (1.0/60)){
        delay((1.0/60)-tm-(t2-t1));
    }
+   delay(5);
 #endif    
 }
 
@@ -119,7 +120,7 @@ static void main_run(){
     }
     for(i=0; i<LOOP; ++i){
         t1=getDoubleTime();
-        if(pause){
+        if(ispause){
             --i;
             drawMatrix(A,i,t2-t1);
             t2=getDoubleTime();
@@ -145,7 +146,7 @@ static void kbfnc(int k,int ctrl,int on){
                memset(A,0,sizeof(float)*SZ*SZ); 
                break;
             case 'p': case 'P':
-               pause = !pause; 
+               ispause = !ispause; 
                break;
         }
     }
@@ -158,9 +159,9 @@ static void mousefnc(int x,int y,int on,int btn){
         x = x * xratio;
         y = y * yratio;
         A[y*SZ+x] = 0xffffff;
-        if(y-1 > 0) A[(y-1)*SZ+x] = 0x0000ff;
+        if(y-1 >= 0) A[(y-1)*SZ+x] = 0x0000ff;
         if(y+1 < SZ) A[(y+1)*SZ+x] = 0x00000f;
-        if(x-1 > 0) A[y*SZ+x-1] =0x00000f;
+        if(x-1 >= 0) A[y*SZ+x-1] =0x00000f;
         if(x+1 < SZ) A[(y+1)*SZ+x+1] = 0x00000f;
     }
 }

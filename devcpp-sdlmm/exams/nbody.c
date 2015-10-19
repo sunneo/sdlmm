@@ -12,6 +12,8 @@
 
 #ifdef HAS_SDLMM
 #include <sdlmm.h>
+#include "libsdlmmWrap.h"
+//SDLMM* sdlmm;
 #endif
 int showhelp=1;
 int showmode=3;
@@ -176,13 +178,20 @@ static int main_run(int argc,char **argv) {
         //printf("loop %d (%f,%f)\n",loop,avgX,avgY);
         avgX=0;avgY=0;avgZ=0; 
         fps_time_1=getDoubleTime();
-#pragma omp parallel for firstprivate(X_Velocity,Y_Velocity,Z_Velocity,newX_velocity,newY_velocity,newZ_velocity,X_axis,Y_axis,Z_axis,Mass,SZ,simulatetime_factor)  reduction(+:avgX,avgY,avgZ)
+#pragma omp parallel for firstprivate(X_Velocity,Y_Velocity,Z_Velocity,newX_velocity,newY_velocity,newZ_velocity,X_axis,Y_axis,Z_axis,Mass,SZ,simulatetime_factor) // reduction(+:avgX,avgY,avgZ)
         for(i=0; i<SZ; i++) 
         {
              Nbody(i,SZ,X_axis,Y_axis,Z_axis,newX_velocity,newY_velocity,newZ_velocity,Mass,simulatetime_factor);
+             //avgX+=X_axis[i];
+             //avgY+=Y_axis[i];
+             //avgZ+=Z_axis[i];
+        }
+        for(i=0; i<SZ; i++) 
+        {
              avgX+=X_axis[i];
              avgY+=Y_axis[i];
              avgZ+=Z_axis[i];
+         
         }
         avgX/=SZ;
         avgY/=SZ;
@@ -236,7 +245,6 @@ int main(int argc,char** argv){
     newY_velocity = allocateBody();
     newZ_velocity = allocateBody();
 #ifdef HAS_SDLMM
-    //sdlmm = sdlmm_get_instance("libsdlmm.so");
     screen(SCREENX,SCREENY);
     screentitle("[GPU] NBody-Simulation");
     settextfont("FreeMono.ttf",16);
