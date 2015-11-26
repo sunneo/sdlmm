@@ -27,25 +27,26 @@ static void mousefnc(int x,int y,int on,int btn) {
     touchfnc(x,y,on);
 }
 int main(int argc, char *argv[]) {
-    static const int width =1024;
-    static const int height = 768;
+    static const int width =640;
+    static const int height = 1024;
     static const int max_radius = 300;
     int i;
     screen(width,height);
-    screentitle("Draw Rectangles,Use Circle Param On Click");
+    screentitle("Draw Circle On Click & Drag");
     setonmotion(touchfnc);
     setonmouse(mousefnc);
     while(1) {
         fillrect(0,0,width,height,0xffffff);
         for(i=0; i<circnt; ++i) {
            if(circles[i].active) {
-               drawrect(circles[i].x-circles[i].r,circles[i].y-circles[i].r,circles[i].r*2,circles[i].r*2,circles[i].c);
+               drawcircle(circles[i].x,circles[i].y,circles[i].r,circles[i].c);
                circles[i].r+=1;
                if(circles[i].r>=max_radius)
                    circles[i].active = 0;
            }
         }
         flushscreen();
+        delay(1);
     }
     return 0;
 }
