@@ -203,7 +203,7 @@ static void sdlfill_circle(SDL_Surface *surface, int cx, int cy, int radius, Uin
     double r = (double)radius;
     int idy;
     SDL_LockSurface(surface);
-//#pragma omp parallel for firstprivate(r,pixel,cx,cy,surface)
+//#pragma omp parallel for firstprivate(r,pixel,cx,cy,surface) 
     for (idy = 1; idy <= radius; idy += 1){
         double dy = (double)idy;
         int dx = (int) floor(sqrt((2.0 * r * dy) - (dy * dy)));
@@ -353,8 +353,11 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
        for(ii=0; ii<e; ++ii) {
            int i2,j2;
            i2=(ii%xlen)+x;
+           if(i2 > Screen->w || i2 < 0) continue;
            j2=(ii/xlen)+y;
-           sdlset_pixel(Screen,i2,j2,color);
+           if(j2 > Screen->h || j2 < 0) continue;
+           //sdlset_pixel(Screen,i2,j2,color);
+           sdlset_pixel_nocheck(Screen,i2,j2,color);
        }
 
 #endif
@@ -438,6 +441,7 @@ void settextfont(const char* font,int fontsize) {
 static FT_Library ft_library;
 static FT_Face ft_face;
 
+// FT_New_Face, FT_Set_Pixel_Sizes, FT_Done_Face
 static void do_settextfont(const char* font,int fontsize) {
     FT_Face ft_newface;
     if(0 != FT_New_Face(ft_library, font, 0, &ft_newface)) {
@@ -508,9 +512,9 @@ typedef struct ThreadParam {
 static void ft_atexit() {
     FT_Done_FreeType(ft_library);
 }
-
+#define SAMPLES 8000
 typedef struct AudioContext{
-   short buf[65536];
+   short* buf;
    int audio_len;
    Uint8* audio_pos;
    Uint32 audio_offset;
@@ -521,9 +525,10 @@ static AudioContext audioContext;
 static void fill_audio(void *udata, Uint8 *stream, int len){
           /* Only play if we have data left */
         if ( audioContext.audio_len == 0 ) return;
+        //if ( audioContext.audio_offset == 0 ) return;
         /* Mix as much data as possible */
         len = ( len > audioContext.audio_len ? audioContext.audio_len : len );
-        SDL_MixAudio(stream, audioContext.audio_pos, len, SDL_MIX_MAXVOLUME);
+        SDL_MixAudio(stream,audioContext.audio_pos, len, SDL_MIX_MAXVOLUME);
         audioContext.audio_pos += len;
         audioContext.audio_len -= len;
         if(audioContext.audio_len == 0){
@@ -544,20 +549,24 @@ static void do_playwave();
 void playwave(short* wave,int len){
    playwaveReq.wave = wave;
    playwaveReq.len = len;
+   audioContext.buf = wave;
+   audioContext.audio_len = len;
+   audioContext.audio_pos = (Uint8*)&audioContext.buf[0];
    do_playwave();
 }
 
 static void do_playwave(){ 
    if(playwaveReq.len == 0) return;
+   /*
    int byteLen = playwaveReq.len ;
    char* pwave = (char*)playwaveReq.wave;
    while(byteLen > 0){
        int waveOffset = 0;
        waveOffset = (int)((size_t)pwave)-((size_t)playwaveReq.wave);
-       if(byteLen + audioContext.audio_offset >= 65535){
-          int procLen = 65536-audioContext.audio_offset;         
+       if(byteLen + audioContext.audio_offset >= SAMPLES){
+          int procLen = SAMPLES-audioContext.audio_offset;         
           if(procLen >= byteLen) procLen=byteLen;
-          if(audioContext.audio_offset + procLen <= 65536 ){
+          if(audioContext.audio_offset + procLen <= SAMPLES ){
              memcpy(&audioContext.buf[audioContext.audio_offset],pwave,procLen);
           }
           byteLen -= procLen;
@@ -579,7 +588,8 @@ static void do_playwave(){
           SDL_PauseAudio(0);
           break;
        }
-   }
+   }*/
+   SDL_PauseAudio(0);
    while ( audioContext.audio_len > 0 ) {
       SDL_Delay(10);
    } 
@@ -600,7 +610,7 @@ static int init_audio(){
     wantedAudioSpec.freq = 44100;
     wantedAudioSpec.format = AUDIO_S16;
     wantedAudioSpec.channels = 2;    /* 1 = mono, 2 = stereo */
-    wantedAudioSpec.samples = 1024;  /* Good low-latency value for callback */
+    wantedAudioSpec.samples = 1000;  /* Good low-latency value for callback */
     wantedAudioSpec.callback = fill_audio;
     wantedAudioSpec.userdata = NULL;
     audioContext.audio_offset = 0;
@@ -920,6 +930,8 @@ static int freetyperesult_match_char(const FreeTypeResult* result,int c,int font
     }
 }
 
+//dependancy:FT_Load_Glyph, FT_Load_Char 
+//FT_Face
 static FreeTypeResult* freetype_result_map_find_or_create(int c,int fontsize,const FT_Face* face,int wide) {
     int i;
     int* arr;
@@ -1135,7 +1147,7 @@ void stretchpixels(const int* pixels,int w,int h,int* output,int w2,int h2){
     float dh=((float)h2)/h;
     int ii,e;
     e=h2*w2;
-#pragma omp parallel for firstprivate(output,pixels,dw,dh)
+//#pragma omp parallel for firstprivate(output,pixels,dw,dh)
     for(ii=0; ii<e; ii+=1){
         int origi,origj;
         float i=ii%w2;
