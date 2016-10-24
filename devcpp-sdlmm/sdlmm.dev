@@ -28,8 +28,8 @@ CustomMakefile=
 IncludeVersionInfo=0
 SupportXPThemes=0
 CompilerSet=0
-CompilerSettings=000100b000000000001000000
-UnitCount=14
+CompilerSettings=000000c000000000000000000
+UnitCount=15
 
 [VersionInfo]
 Major=1
@@ -189,4 +189,14 @@ Link=0
 Priority=1000
 OverrideBuildCmd=0
 BuildCmd=$(CC) -c mode7.c -o obj/mode7.o $(CFLAGS)
+
+[Unit15]
+FileName=exams\nbody.c
+CompileCpp=0
+Folder=examples
+Compile=0
+Link=0
+Priority=1000
+OverrideBuildCmd=0
+BuildCmd=$(CC) -c nbody.c -o obj/nbody.o $(CFLAGS)
 
