@@ -1,105 +1,27 @@
 #include "sdlmm.h"
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <stdio.h>
 #include <math.h>
-static const int width=1024;
-static const int height=768;
-static int* bg;
-static int* bg_small;
-static volatile int mx,my,vx=1440,vy=1440,bh,bw,ox,oy;
-static int UP,LEFT,DOWN,RIGHT,TLEFT,TRIGHT;
-#define VK_UP 273
-#define VK_LEFT 276
-#define VK_DOWN 274
-#define VK_RIGHT 275
-
-static char msg[1024];
-static float angle = 0;
-
-static void drawfnc(){
-    float viewY=cos(-angle);
-    float viewX=sin(-angle);
-    int mapCenterX=width-400+400*(((double)vx)/bw);
-    int mapCenterY=400*(((double)vy)/bh);
-    fillrect(0,0,width,height,0xcccccc);
-    mode7render(angle,vx,vy,bg,bw,bh,0,height/2,width,500);
-    
-    drawpixels(bg_small,width-400,0,400,400);
-    fillcircle(mapCenterX,mapCenterY,5,0xffffff);
-    fillcircle(mapCenterX,mapCenterY,3,0x0000ff);
-    drawline(mapCenterX,mapCenterY,mapCenterX+viewX*15,mapCenterY+viewY*15,0xffff00);
-    drawline(mapCenterX+2,mapCenterY,mapCenterX+viewX*15,mapCenterY+viewY*15,0xff0000);
-    drawline(mapCenterX-2,mapCenterY,mapCenterX+viewX*15,mapCenterY+viewY*15,0xffff00);
-    
-    fillrect(0,0,100,22,0xffffff);
-    sprintf(msg,"%-4d,%-4d,vx=%-3d,vy=%-3d,angle=%-5.2f", mx,my,vx,vy,angle);
-    drawtext(msg,0,0,0x0);
-    flushscreen();
-    delay(5);
+#include <string.h>
+static void musicPlayer(void* p){
+    short* wav;
+    unsigned int len;
+    loadwav("music.wav",&wav,&len);
+    playwave(wav,len);
+    free(wav);
 }
-
-static void handlekb(){
-    static float delta=5;
-    int deltaX=abs(ox-mx);
-	if(ox < mx) TLEFT=1;
-	else if(ox > mx) TRIGHT=1;
-	// First Shooting View
-	if(UP || DOWN){
-	    float sY=cos(fabs(angle))*delta;
-        float sX=sin(fabs(angle))*delta;
-	    vx+=sX*(DOWN?1:-1);
-	    vy+=sY*(DOWN?-1:1); 
-	}
-	if(LEFT || RIGHT){
-	    float sY=cos(fabs(angle))*delta;
-        float sX=sin(fabs(angle))*delta;
-	    vx-=sY*(LEFT?-1:1);
-	    vy-=sX*(LEFT?-1:1); 
-	}
-	
-	if(vy<100) vy=100;
-	if(vy>bh-100) vy=bh-100;
-	if(vx > bw-100) vx=bw-100;
-	if(vx < 100) vx=100;
-	
-    if(TLEFT) angle += /*(mx - width/2)*/deltaX*0.01*delta;
-    if(TRIGHT)angle -= /*(mx - width/2)*/deltaX*0.01*delta;
-    if(ox==mx) TLEFT=TRIGHT=0;
-    
-    if(angle > 2 * 3.1415926) angle -=3.1415926*2;
-    if(angle < 0) angle = 3.1415926*2-angle;
-	ox=mx;
-}
-static void kb(int k,int c,int o){
-    switch(k){
-        case VK_UP:case 'W':case 'w': UP=o; break;
-        case VK_LEFT: case 'A':case 'a': LEFT=o; break;
-        case VK_DOWN:  case 'S':case 's': DOWN=o; break;
-        case VK_RIGHT: case 'D':case 'd': RIGHT=o; break;
-        case 'O':case 'o': TLEFT=o; break;
-        case 'P':case 'p': TRIGHT=o; break;
+int main(int argc, char *argv[]) {
+    static const int width =250;
+    static const int height = 75;
+    int i;
+    int* pic,pic_w,pic_h;
+    screen(width,height);
+    screentitle("Play Wave File");
+    run_async(musicPlayer,NULL);
+    while(1) {
+        delay(1);
     }
+    return 0;
 }
-static void mouse(int x,int y,int on){
-    ox=mx;
-    oy=my;
-    mx=x;
-    my=y;
-}
-int main(int argc, char** argv){
-   screen(width,height);
-   screentitle("Mode7 Demo");
-   setonkey(kb);
-   setonmotion(mouse);
-   settextfont("FreeMono.ttf",20);
-   loadimage("g.bmp",&bg,&bw,&bh);
-   loadimage("g.bmp",&bg_small,&bw,&bh);
-   stretchpixels2(&bg_small,bw,bh,400,400);
-   
-   while(1){
-       handlekb();
-       drawfnc();
-   }
-}
+
 

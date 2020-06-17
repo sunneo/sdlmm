@@ -310,8 +310,9 @@ static void sdldrawpixels_transkey(SDL_Surface *Screen,Uint32* pixels, int x, in
 #if 1
     for(j=y; j<miny; ++j) {
         for(i=x; i<minx; ++i) {
-            sdlset_pixel_nocheck2(Screen,i,j,pixels[j*w+i],transkey);
-            //++pixels;
+        	sdlset_pixel_nocheck2(Screen,i,j,*pixels,transkey);
+            ++pixels;
+            //sdlset_pixel_nocheck2(Screen,i,j,pixels[j*w+i],transkey);
         }
     }
 #else
@@ -546,7 +547,9 @@ typedef struct DOPlayWaveReq{
 
 static DOPlayWaveReq playwaveReq;
 static void do_playwave();
+
 void playwave(short* wave,int len){
+   if(!wave) return;
    playwaveReq.wave = wave;
    playwaveReq.len = len;
    audioContext.buf = wave;
@@ -597,15 +600,16 @@ static void do_playwave(){
 }
 static SDL_AudioSpec wantedAudioSpec;
 void loadwav(const char* filename, short** wav,unsigned int* olen ){
-    Uint8* buf;
-    Uint32 len;
-    SDL_LoadWAV(filename,&wantedAudioSpec,&buf,&len);
+    Uint8* buf=0;
+    Uint32 len=0;
+    if(SDL_LoadWAV(filename,&wantedAudioSpec,&buf,&len)==NULL){
+    	fprintf(stderr, "Could not open %s: %s (wantedAudioSpec:.freq=%d)\n",filename, SDL_GetError(),wantedAudioSpec.freq);
+    }
     *wav = (short*)buf;
     *olen = len;
 }
 
 static int init_audio(){
-    SDL_AudioSpec wantedAudioSpec;
     /* Set the audio format */
     wantedAudioSpec.freq = 44100;
     wantedAudioSpec.format = AUDIO_S16;
@@ -698,6 +702,9 @@ static void screen_internal(int width,int height,int manual,const char* title) {
         }
         if(init_audio()==0){
            atexit(audio_atexit);
+        }
+        else{
+        	perror("init_audio failed");
         }
     }
 }

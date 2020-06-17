@@ -2,14 +2,14 @@
 #include <stdlib.h>
 #define SIZE 100
 #define SCREEN_X  1024
-#define SCREEN_Y  400
+#define SCREEN_Y  600
 #define MAXDATA 16384
 static void init(int* data,int size)
 {
     int i;
     for(i=0; i<size; ++i)
     {
-       data[i] = rand();
+       data[i] = rand()%MAXDATA;
     }
 }
     
