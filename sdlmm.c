@@ -21,8 +21,11 @@ typedef unsigned char Uint8;
 #ifndef Uint32
 typedef unsigned Uint32;
 #endif
-#include <ft2build.h>
-#include FT_FREETYPE_H
+
+#ifndef NOFREETYPE
+    #include <ft2build.h>
+    #include FT_FREETYPE_H
+#endif
 static int drawthread_created = 0;
 static SDL_Thread * drawthread;
 static SDL_Thread * sndthread;
@@ -439,11 +442,14 @@ void settextfont(const char* font,int fontsize) {
     setTextFontReq.fontsize = fontsize;
     SDL_mutexV(drawqueue_mutex);
 }
+#ifndef NOFREETYPE
 static FT_Library ft_library;
 static FT_Face ft_face;
+#endif
 
 // FT_New_Face, FT_Set_Pixel_Sizes, FT_Done_Face
 static void do_settextfont(const char* font,int fontsize) {
+#ifndef NOFREETYPE
     FT_Face ft_newface;
     if(0 != FT_New_Face(ft_library, font, 0, &ft_newface)) {
         fprintf(stderr,"settextfont failed:FT_NewFace can not open font %s(fontsize=%d)\n",
@@ -455,6 +461,7 @@ static void do_settextfont(const char* font,int fontsize) {
         FT_Done_Face(ft_face);
     }
     ft_face = ft_newface;
+#endif
 }
 
 static void sdl_setcolor(int color) {
@@ -511,7 +518,9 @@ typedef struct ThreadParam {
     int width,height;
 } ThreadParam;
 static void ft_atexit() {
+#ifndef NOFREETYPE
     FT_Done_FreeType(ft_library);
+#endif
 }
 #define SAMPLES 8000
 typedef struct AudioContext{
@@ -650,7 +659,9 @@ static void init_manual( ThreadParam* param) {
         if (drawscreen == NULL) {
             exit(2);
         }
+#ifndef NOFREETYPE
         FT_Init_FreeType(&ft_library);
+#endif
         atexit(ft_atexit);
         atexit(SDL_Quit);
         
@@ -823,6 +834,7 @@ void screentitle(const char* title) {
     SDL_mutexV(drawqueue_mutex);
 }
 
+#ifndef NOFREETYPE
 static SDL_Surface* CreateTextureFromFT_Bitmap(const FT_Bitmap* bitmap,int r,int g,int b){
     Uint32 rmask, gmask, bmask, amask;
     //void *buffer;
@@ -1016,6 +1028,7 @@ void drawtext(const char* text,int x_start,int baseline,int rcolor)
         x += result->offsetX;
     }
 }
+#endif
 
 typedef struct RunAsyncParam{
     void (*fnc)(void*);
