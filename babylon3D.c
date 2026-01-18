@@ -596,20 +596,27 @@ typedef struct Device{
 
 
 static int texture_map(const Texture* tex, float tu,float tv){
-   int itu=(int)(tu * tex->width);
-   int itv=(int)(tv * tex->height);
-   int u = 0;
-   int v = 0;
-   if(tex->width != 0){
-      u = abs((itu % tex->width));
-   }
-   if(tex->height != 0){
-      v = abs((itv % tex->height));
-   }
-   int pos = (u + v * tex->width);
    if(tex->internalBuffer == NULL){
       return 0;
    }
+   
+   // Clamp UV coordinates to [0, 1] range
+   if(tu < 0.0f) tu = 0.0f;
+   if(tu > 1.0f) tu = 1.0f;
+   if(tv < 0.0f) tv = 0.0f;
+   if(tv > 1.0f) tv = 1.0f;
+   
+   // Convert to texture space and clamp to valid pixel range
+   int u = (int)(tu * (tex->width - 1));
+   int v = (int)(tv * (tex->height - 1));
+   
+   // Clamp to texture bounds (defensive)
+   if(u < 0) u = 0;
+   if(u >= tex->width) u = tex->width - 1;
+   if(v < 0) v = 0;
+   if(v >= tex->height) v = tex->height - 1;
+   
+   int pos = (u + v * tex->width);
    return tex->internalBuffer[pos];
 }
 

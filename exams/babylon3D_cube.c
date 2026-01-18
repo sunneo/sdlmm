@@ -33,13 +33,30 @@ static void createCube() {
     cubeMesh->Vertices[6].Coordinates = vector3(-1, -1, -1);
     cubeMesh->Vertices[7].Coordinates = vector3(1, -1, -1);
     
-    // Set normals (simplified - all point outward)
+    // Set normals and texture coordinates
     int i;
     for(i = 0; i < 8; i++) {
         cubeMesh->Vertices[i].Normal = vector3_normalize_copy(&cubeMesh->Vertices[i].Coordinates);
-        cubeMesh->Vertices[i].TextureCoordinates = vector3_zero();
         cubeMesh->Vertices[i].WorldCoordinates = vector3_zero();
     }
+    
+    // Set texture coordinates for each vertex (UV mapping)
+    // Vertex 0: (-1, 1, 1) -> (0, 0)
+    cubeMesh->Vertices[0].TextureCoordinates = vector3(0, 0, 0);
+    // Vertex 1: (1, 1, 1) -> (1, 0)
+    cubeMesh->Vertices[1].TextureCoordinates = vector3(1, 0, 0);
+    // Vertex 2: (-1, -1, 1) -> (0, 1)
+    cubeMesh->Vertices[2].TextureCoordinates = vector3(0, 1, 0);
+    // Vertex 3: (1, -1, 1) -> (1, 1)
+    cubeMesh->Vertices[3].TextureCoordinates = vector3(1, 1, 0);
+    // Vertex 4: (-1, 1, -1) -> (0, 0)
+    cubeMesh->Vertices[4].TextureCoordinates = vector3(0, 0, 0);
+    // Vertex 5: (1, 1, -1) -> (1, 0)
+    cubeMesh->Vertices[5].TextureCoordinates = vector3(1, 0, 0);
+    // Vertex 6: (-1, -1, -1) -> (0, 1)
+    cubeMesh->Vertices[6].TextureCoordinates = vector3(0, 1, 0);
+    // Vertex 7: (1, -1, -1) -> (1, 1)
+    cubeMesh->Vertices[7].TextureCoordinates = vector3(1, 1, 0);
     
     // Define the 12 faces (2 triangles per side)
     // Front face
@@ -70,11 +87,8 @@ static void createCube() {
     cubeMesh->Position = vector3(0, 0, 10);
     cubeMesh->Rotation = vector3_zero();
     
-    // No texture for now
-    cubeMesh->texture = *texture_load("g.bmp");
-    //cubeMesh->texture.internalBuffer = NULL;
-    //cubeMesh->texture.width = 0;
-    //cubeMesh->texture.height = 0;
+    // Load texture
+    cubeMesh->texture = *texture_load("texture.png");
 }
 
 static void drawfnc() {
