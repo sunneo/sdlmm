@@ -352,7 +352,7 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
             // SIMD loop
             for(i=0; i<simd_pixels; i+=4) {
                 uint32x4_t pixel_data = vld1q_u32((uint32_t*)&src_ptr[i]);
-                vst1q_u32((uint32_t*)row_ptr + i, pixel_data);
+                vst1q_u32((uint32_t*)(row_ptr + i*4), pixel_data);
             }
             
             // Remaining pixels
