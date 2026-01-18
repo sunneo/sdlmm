@@ -607,8 +607,8 @@ static int texture_map(const Texture* tex, float tu,float tv){
    if(tv > 1.0f) tv = 1.0f;
    
    // Convert to texture space - multiply by (width-1) and (height-1)
-   // so that UV=1.0 maps to the last pixel correctly
-   // Example: width=256, tu=1.0 -> u=255 (valid index 0-255)
+   // so that UV=1.0 maps to the last valid pixel index
+   // Example: width=256, tu=1.0 -> u=255 (last valid index in range 0-255)
    int u = (int)(tu * (tex->width - 1));
    int v = (int)(tv * (tex->height - 1));
    
@@ -621,7 +621,9 @@ static int texture_map(const Texture* tex, float tu,float tv){
 
 static Texture* texture_load(const char* filename){
     Texture* ret = (Texture*)malloc(sizeof(Texture));
-    ret->internalBuffer=0;
+    ret->internalBuffer = NULL;
+    ret->width = 0;
+    ret->height = 0;
     loadimage(filename,&ret->internalBuffer,&ret->width,&ret->height);
     return ret;
 }
