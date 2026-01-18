@@ -158,7 +158,7 @@ static float vector2_distance(const Vector2* a,const Vector2* b){
 
 
 
-static Vector3 vector3(float x,float y,float z){
+Vector3 vector3(float x,float y,float z){
     Vector3 ret;
     ret.x=x; ret.y=y; ret.z=z;
     return ret;
@@ -206,7 +206,7 @@ static void vector3_normalize(Vector3* a){
 static Vector3 vector3_fromArray(float* f,int offset){
     return vector3(f[offset],f[offset+1],f[offset+2]);
 }
-static Vector3 vector3_zero(){
+Vector3 vector3_zero(){
     return vector3(0,0,0);
 }
 static Vector3 vector3_up(){
@@ -239,7 +239,7 @@ static Vector3 vector3_cross(const Vector3* left,const Vector3* right)  {
     float z = left->x * right->y - left->y * right->x;
     return vector3(x, y, z);
 };
-static Vector3 vector3_normalize_copy(const Vector3* vector) {
+Vector3 vector3_normalize_copy(const Vector3* vector) {
     Vector3 newvector = vector3_copy(vector);
     vector3_normalize(&newvector);
     return newvector;
@@ -628,7 +628,7 @@ Device* device(int width,int height){
     return ret;
 }
 
-static void device_clear(Device* dev){
+void device_clear(Device* dev){
     int i,e=dev->workingHeight*dev->workingWidth;
     int* backbuffer=dev->backbuffer;
     int* depthbuffer=dev->depthbuffer;
@@ -862,7 +862,7 @@ static void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,flo
 
 #if 1
 
-static void device_render(Device* dev, const Camera* camera, const Mesh* meshes,int meshesLength){
+void device_render(Device* dev, const Camera* camera, const Mesh* meshes,int meshesLength){
     int index;
     Vector3 up = vector3_up();
     Matrix viewMatrix=matrix_LookAtLH(&camera->Position,&camera->Target,&up);
