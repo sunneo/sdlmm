@@ -703,11 +703,8 @@ static void device_present(Device* dev){
 }
 static void device_putPixel(Device* dev,int x,int y,int z,int color){
     // Bounds check to prevent out-of-bounds array access
-    // Check most likely failure conditions first for better branch prediction
-    if(x >= dev->workingWidth || y >= dev->workingHeight) {
-        return;
-    }
-    if(x < 0 || y < 0) {
+    // Combined check for better branch prediction
+    if(x < 0 || y < 0 || x >= dev->workingWidth || y >= dev->workingHeight) {
         return;
     }
     int idx=y*dev->workingWidth+x;

@@ -304,7 +304,6 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
     int miny = y+h;
     int minx = x+w;
     int ii,e,xlen,ylen;
-    int pixels_offset;  // For SIMD path
     if(miny > Screen->h) miny=Screen->h;
     if(minx > Screen->w) minx=Screen->w;
     if(x<0) x = 0;
@@ -314,51 +313,55 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
 #ifdef USE_SIMD_X86
     // SSE2 optimized pixel copy for x86/x64
     // Using unaligned loads/stores as SDL surfaces may not be 16-byte aligned
-    xlen=minx-x;
-    pixels_offset = 0;
-    
-    for(j=y; j<miny; ++j) {
-        Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
-        Uint32* src_ptr = &pixels[pixels_offset];
-        int row_pixels = xlen;
-        int simd_pixels = (row_pixels / 4) * 4;  // Process 4 pixels at a time
+    {
+        int pixels_offset = 0;
+        xlen=minx-x;
         
-        // SIMD loop - unaligned loads/stores
-        for(i=0; i<simd_pixels; i+=4) {
-            __m128i pixel_data = _mm_loadu_si128((__m128i*)&src_ptr[i]);
-            _mm_storeu_si128((__m128i*)(row_ptr + i*4), pixel_data);
+        for(j=y; j<miny; ++j) {
+            Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
+            Uint32* src_ptr = &pixels[pixels_offset];
+            int row_pixels = xlen;
+            int simd_pixels = (row_pixels / 4) * 4;  // Process 4 pixels at a time
+            
+            // SIMD loop - unaligned loads/stores
+            for(i=0; i<simd_pixels; i+=4) {
+                __m128i pixel_data = _mm_loadu_si128((__m128i*)&src_ptr[i]);
+                _mm_storeu_si128((__m128i*)(row_ptr + i*4), pixel_data);
+            }
+            
+            // Remaining pixels
+            for(i=simd_pixels; i<row_pixels; ++i) {
+                *((Uint32*)(row_ptr + i*4)) = src_ptr[i];
+            }
+            
+            pixels_offset += xlen;
         }
-        
-        // Remaining pixels
-        for(i=simd_pixels; i<row_pixels; ++i) {
-            *((Uint32*)(row_ptr + i*4)) = src_ptr[i];
-        }
-        
-        pixels_offset += xlen;
     }
 #elif defined(USE_SIMD_ARM)
     // NEON optimized pixel copy for ARM
-    xlen=minx-x;
-    pixels_offset = 0;
-    
-    for(j=y; j<miny; ++j) {
-        Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
-        uint32_t* src_ptr = (uint32_t*)&pixels[pixels_offset];
-        int row_pixels = xlen;
-        int simd_pixels = (row_pixels / 4) * 4;  // Process 4 pixels at a time
+    {
+        int pixels_offset = 0;
+        xlen=minx-x;
         
-        // SIMD loop
-        for(i=0; i<simd_pixels; i+=4) {
-            uint32x4_t pixel_data = vld1q_u32(&src_ptr[i]);
-            vst1q_u32((uint32_t*)(row_ptr + i*4), pixel_data);
+        for(j=y; j<miny; ++j) {
+            Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
+            Uint32* src_ptr = &pixels[pixels_offset];
+            int row_pixels = xlen;
+            int simd_pixels = (row_pixels / 4) * 4;  // Process 4 pixels at a time
+            
+            // SIMD loop
+            for(i=0; i<simd_pixels; i+=4) {
+                uint32x4_t pixel_data = vld1q_u32((uint32_t*)&src_ptr[i]);
+                vst1q_u32((uint32_t*)row_ptr + i, pixel_data);
+            }
+            
+            // Remaining pixels
+            for(i=simd_pixels; i<row_pixels; ++i) {
+                *((Uint32*)(row_ptr + i*4)) = src_ptr[i];
+            }
+            
+            pixels_offset += xlen;
         }
-        
-        // Remaining pixels
-        for(i=simd_pixels; i<row_pixels; ++i) {
-            *((Uint32*)(row_ptr + i*4)) = src_ptr[i];
-        }
-        
-        pixels_offset += xlen;
     }
 #else
     // Fallback: OpenMP parallel version
