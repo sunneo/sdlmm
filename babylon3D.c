@@ -596,26 +596,34 @@ typedef struct Device{
 
 
 static int texture_map(const Texture* tex, float tu,float tv){
-   int itu=(int)(tu * tex->width);
-   int itv=(int)(tv * tex->height);
-   int u = 0;
-   int v = 0;
-   if(tex->width != 0){
-      u = abs((itu % tex->width));
-   }
-   if(tex->height != 0){
-      v = abs((itv % tex->height));
-   }
-   int pos = (u + v * tex->width);
-   if(tex->internalBuffer == NULL){
+   if(tex->internalBuffer == NULL || tex->width <= 0 || tex->height <= 0){
       return 0;
    }
+   
+   // Clamp UV coordinates to [0, 1] range
+   if(tu < 0.0f) tu = 0.0f;
+   if(tu > 1.0f) tu = 1.0f;
+   if(tv < 0.0f) tv = 0.0f;
+   if(tv > 1.0f) tv = 1.0f;
+   
+   // Convert to texture space - multiply by (width-1) and (height-1)
+   // so that UV=1.0 maps to the last valid pixel index
+   // Example: width=256, tu=1.0 -> u=255 (last valid index in range 0-255)
+   int u = (int)(tu * (tex->width - 1));
+   int v = (int)(tv * (tex->height - 1));
+   
+   // Calculate position: u + v * width
+   // Max position: (width-1) + (height-1) * width = width-1 + width*height - width 
+   //             = width*height - 1 (valid for buffer of size width*height)
+   int pos = (u + v * tex->width);
    return tex->internalBuffer[pos];
 }
 
 static Texture* texture_load(const char* filename){
     Texture* ret = (Texture*)malloc(sizeof(Texture));
-    ret->internalBuffer=0;
+    ret->internalBuffer = NULL;
+    ret->width = 0;
+    ret->height = 0;
     loadimage(filename,&ret->internalBuffer,&ret->width,&ret->height);
     return ret;
 }
@@ -756,7 +764,7 @@ static int device_color4(int r,int g,int b,int a){
     return 0x010000*r+(0x000100)*g+0x000001*b+0x01000000*a;
 }
 static int device_color4ref(int refColr,float r,float g,float b,float a){
-    return device_color4((int)(0xff0000&refColr)*r,(int)(0x00ff00&refColr)*g,(int)(0x0000ff&refColr)*b,(int)(0xff000000&refColr)*a);
+    return device_color4((int)(((refColr>>16)&0xff)*r),(int)(((refColr>>8)&0xff)*g),(int)((refColr&0xff)*b),(int)(((refColr>>24)&0xff)*a));
 }
 typedef struct DrawData{
     float currentY;
@@ -785,7 +793,7 @@ static void device_processScanLine(Device* dev,const DrawData* data,const Vertex
     float currentY=data->currentY;
 #pragma omp parallel for firstprivate(z1,z2,snl,enl,su,eu,sv,ev,texture)
     for (x = sx; x < ex; x++) {
-        float gradient = (x - sx) / (ex - sx);
+        float gradient = (ex > sx) ? ((float)(x - sx) / (float)(ex - sx)) : 0.0f;
 
         float z = device_interpolate(z1, z2, gradient);
         float ndotl = device_interpolate(snl, enl, gradient) * color;
@@ -801,7 +809,10 @@ static void device_processScanLine(Device* dev,const DrawData* data,const Vertex
             textureColor = 0xffffff;   
         }
         Vector3 pt=vector3(x,currentY,z);
-        device_drawPoint(dev,&pt,device_color4ref(textureColor,ndotl ,ndotl,ndotl, 1));
+        // Apply lighting with ambient term to prevent texture from being too dark
+        // ambient (0.4) + diffuse lighting (0.6 * ndotl)
+        float lightingFactor = 0.2f + 0.8f * ndotl;
+        device_drawPoint(dev,&pt,device_color4ref(textureColor,lightingFactor,lightingFactor,lightingFactor, 1));
     }
 }
 
