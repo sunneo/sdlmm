@@ -71,7 +71,7 @@ static float vector3_distance(const Vector3* value1,const Vector3*  value2);
 static float vector3_distanceSquared(const Vector3* value1,const Vector3*  value2);
 
 static Matrix matrix();
-static matrix_isIdentity(const Matrix* a);
+static int matrix_isIdentity(const Matrix* a);
 static float matrix_determinant(const Matrix* a);
 static float* matrix_toArray(Matrix* a);
 static void matrix_invert(Matrix* a) ;
@@ -275,7 +275,7 @@ static Matrix matrix(){
     memset(&ret,0,sizeof(Matrix));
     return ret;
 }
-static matrix_isIdentity(const Matrix* a){
+static int matrix_isIdentity(const Matrix* a){
     if(a->m[0] != 1.0 || a->m[5] != 1.0 || a->m[10] != 1.0 || a->m[15] != 1.0) return 0;
     if(a->m[12] != 0.0 || a->m[13] != 0.0 || a->m[14] != 0.0 || a->m[4] != 0.0 || a->m[6] != 0.0 || a->m[7] != 0.0 || a->m[8] != 0.0 || a->m[9] != 0.0 || a->m[11] != 0.0 || a->m[12] != 0.0 || a->m[13] != 0.0 || a->m[14] != 0.0)  return 0;
     return 1;
