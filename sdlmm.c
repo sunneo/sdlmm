@@ -297,7 +297,7 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
-#if 1
+#if 0
     for(j=y; j<miny; ++j) {
         for(i=x; i<minx; ++i) {
             sdlset_pixel_nocheck(Screen,i,j,*pixels);
@@ -331,7 +331,7 @@ static void sdldrawpixels_transkey(SDL_Surface *Screen,Uint32* pixels, int x, in
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
-#if 1
+#if 0
     for(j=y; j<miny; ++j) {
         for(i=x; i<minx; ++i) {
         	sdlset_pixel_nocheck2(Screen,i,j,*pixels,transkey);
@@ -363,7 +363,7 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
-#if 1
+#if 0
     for(j=y; j<miny ; ++j) {
         for(i=x; i<minx; ++i) {
            

@@ -652,6 +652,10 @@ static void device_present(Device* dev){
     drawpixels(dev->backbuffer,0,0,dev->workingWidth,dev->workingHeight);
 }
 static void device_putPixel(Device* dev,int x,int y,int z,int color){
+    // Bounds check to prevent out-of-bounds array access
+    if(x < 0 || y < 0 || x >= dev->workingWidth || y >= dev->workingHeight) {
+        return;
+    }
     int idx=y*dev->workingWidth+x;
     if (dev->depthbuffer[idx] < z) {
         return;
@@ -661,9 +665,7 @@ static void device_putPixel(Device* dev,int x,int y,int z,int color){
 }
 
 static void device_drawPoint(Device* dev,const Vector3* point,int color){
-    if(point->x >=0 && point->y >= 0 && point->x < dev->workingWidth && point->y < dev->workingHeight){
-        device_putPixel(dev,point->x,point->y,point->z,color);
-    }
+    device_putPixel(dev,point->x,point->y,point->z,color);
 }
 static __inline float maxf(float a,float b){ return a>b?a:b;}
 static __inline float minf(float a,float b){ return a<b?a:b;}
