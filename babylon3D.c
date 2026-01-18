@@ -606,15 +606,10 @@ static int texture_map(const Texture* tex, float tu,float tv){
    if(tv < 0.0f) tv = 0.0f;
    if(tv > 1.0f) tv = 1.0f;
    
-   // Convert to texture space and clamp to valid pixel range
+   // Convert to texture space - multiply by (width-1) and (height-1)
+   // so that UV=1.0 maps to the last pixel correctly
    int u = (int)(tu * (tex->width - 1));
    int v = (int)(tv * (tex->height - 1));
-   
-   // Clamp to texture bounds (defensive)
-   if(u < 0) u = 0;
-   if(u >= tex->width) u = tex->width - 1;
-   if(v < 0) v = 0;
-   if(v >= tex->height) v = tex->height - 1;
    
    int pos = (u + v * tex->width);
    return tex->internalBuffer[pos];
