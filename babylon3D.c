@@ -129,7 +129,7 @@ static Vector2 vector2_copy(const Vector2* a){
 }
 static Vector2 vector2_normalize_copy(const Vector2* a){
     Vector2 ret = vector2_copy(a);
-    vector2_normalize0(&ret);
+    vector2_normalize(&ret);
     return ret;
 }
 
@@ -152,7 +152,7 @@ static float vector2_distanceSquared(const Vector2* a,const Vector2* b){
     return (x*x)+(y*y);
 }
 static float vector2_distance(const Vector2* a,const Vector2* b){
-    return sqrt(vector2_disanceSquared(a,b));
+    return sqrt(vector2_distanceSquared(a,b));
 }
 
 
@@ -487,9 +487,9 @@ static Matrix matrix_LookAtLH(const Vector3* eye,const Vector3* target,const Vec
     vector3_normalize(&xaxis);
     Vector3 yaxis = vector3_cross(&zaxis, &xaxis);
     vector3_normalize(&yaxis);
-    float ex = -vector3_Dot(xaxis, eye);
-    float ey = -vector3_Dot(yaxis, eye);
-    float ez = -vector3_Dot(zaxis, eye);
+    float ex = -vector3_dot(&xaxis, eye);
+    float ey = -vector3_dot(&yaxis, eye);
+    float ez = -vector3_dot(&zaxis, eye);
     return matrix_fromValues(xaxis.x, yaxis.x, zaxis.x, 0, xaxis.y, yaxis.y, zaxis.y, 0, xaxis.z, yaxis.z, zaxis.z, 0, ex, ey, ez, 1);
 }
 
@@ -614,6 +614,7 @@ Mesh* softengine_mesh(const char* name,int verticesCount,int facesCount){
     ret->Vertices = (Vertex*)malloc(sizeof(Vertex)*verticesCount);
     ret->faces = (Face*)malloc(sizeof(Face)*facesCount);
     ret->verticesCount=verticesCount;
+    ret->faceCount=facesCount;
     ret->Rotation = vector3_zero();
     ret->Position = vector3_zero();
     return ret;
@@ -739,7 +740,7 @@ static void device_processScanLine(Device* dev,const DrawData* data,const Vertex
     }
 }
 
-static device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float color,const Texture* texture) {
+static void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float color,const Texture* texture) {
             if (v1->Coordinates.y > v2->Coordinates.y) {
                 Vertex* temp = v2;
                 v2 = v1;
@@ -874,7 +875,7 @@ static void device_render(Device* dev, const Camera* camera, const Mesh* meshes,
         Matrix worldMatrix = matrix_multiply(&rotationYPR,&translation);
         Matrix res1=matrix_multiply(&worldMatrix,&viewMatrix);
         Matrix transformMatrix = matrix_multiply(&res1,&projectionMatrix);
-        for(indexVertices = 0; indexVertices < cMesh->verticesCount; indexVertices++) {
+        for(indexVertices = 0; indexVertices < cMesh->faceCount; indexVertices++) {
             Face* currentFace = &cMesh->faces[indexVertices];
             Vertex* vertexA=&cMesh->Vertices[currentFace->A];
             Vertex* vertexB=&cMesh->Vertices[currentFace->B];
@@ -888,6 +889,38 @@ static void device_render(Device* dev, const Camera* camera, const Mesh* meshes,
     }
     device_present(dev);
 }
+
+// Memory cleanup functions
+void mesh_free(Mesh* mesh) {
+    if(!mesh) return;
+    if(mesh->Vertices) {
+        free(mesh->Vertices);
+        mesh->Vertices = NULL;
+    }
+    if(mesh->faces) {
+        free(mesh->faces);
+        mesh->faces = NULL;
+    }
+    if(mesh->texture.internalBuffer) {
+        free(mesh->texture.internalBuffer);
+        mesh->texture.internalBuffer = NULL;
+    }
+    free(mesh);
+}
+
+void device_free(Device* dev) {
+    if(!dev) return;
+    if(dev->backbuffer) {
+        free(dev->backbuffer);
+        dev->backbuffer = NULL;
+    }
+    if(dev->depthbuffer) {
+        free(dev->depthbuffer);
+        dev->depthbuffer = NULL;
+    }
+    free(dev);
+}
+
 #endif
 
 
