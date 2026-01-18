@@ -586,9 +586,18 @@ typedef struct Device{
 static int texture_map(const Texture* tex, float tu,float tv){
    int itu=(int)(tu * tex->width);
    int itv=(int)(tv * tex->height);
-   int u = abs((itu % tex->width));
-   int v = abs((itv % tex->height));
+   int u = 0;
+   int v = 0;
+   if(tex->width != 0){
+      u = abs((itu % tex->width));
+   }
+   if(tex->height != 0){
+      v = abs((itv % tex->height));
+   }
    int pos = (u + v * tex->width);
+   if(tex->internalBuffer == NULL){
+      return 0;
+   }
    return tex->internalBuffer[pos];
 }
 
@@ -610,6 +619,7 @@ static Camera softengine_camera(){
 }
 Mesh* softengine_mesh(const char* name,int verticesCount,int facesCount){
     Mesh* ret = (Mesh*)malloc(sizeof(Mesh));;
+    memset(ret,0,sizeof(Mesh));
     strncpy(ret->name,name,256);
     ret->Vertices = (Vertex*)malloc(sizeof(Vertex)*verticesCount);
     ret->faces = (Face*)malloc(sizeof(Face)*facesCount);

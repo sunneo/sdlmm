@@ -41,6 +41,25 @@ static void (*sdlkeyfnc)(int,int,int);
 static void (*sdltouchfnc)(int,int,int);
 static void (*sdlmousefnc)(int,int,int,int)=sdlmousefnc_default;
 static void (*sdlmotionfnc)(int,int,int);
+typedef struct FreeTypeResult {
+    int* pixels;
+    char ch;
+    wchar_t wch;
+    int fontsize;
+
+    int w;
+    int h;
+    int offsetY;
+    int offsetX;
+
+} FreeTypeResult;
+
+typedef struct FreeTypeResultMap {
+    FreeTypeResult* map[65536];
+    int cnt;
+} FreeTypeResultMap;
+
+static FreeTypeResultMap freeTypeResultMap;
 
 static void surface_to_array(SDL_Surface* img,int** ret,int*w, int* h) {
     int len,ih,iw;
@@ -895,25 +914,6 @@ static SDL_Surface* CreateTextureFromFT_Bitmap(const FT_Bitmap* bitmap,int r,int
     return output;
 }
 
-typedef struct FreeTypeResult {
-    int* pixels;
-    char ch;
-    wchar_t wch;
-    int fontsize;
-
-    int w;
-    int h;
-    int offsetY;
-    int offsetX;
-
-} FreeTypeResult;
-
-typedef struct FreeTypeResultMap {
-    FreeTypeResult* map[65536];
-    int cnt;
-} FreeTypeResultMap;
-
-static FreeTypeResultMap freeTypeResultMap;
 static void freetype_result_swap(FreeTypeResultMap* map,int i,int j) {
     FreeTypeResult* tmp;
     if(i == j) return;

@@ -9,7 +9,7 @@ static const int width = 800;
 static const int height = 600;
 
 // 3D objects
-static Device* device = NULL;
+static Device* m_device = NULL;
 static Mesh* cubeMesh = NULL;
 static Camera camera;
 
@@ -71,21 +71,22 @@ static void createCube() {
     cubeMesh->Rotation = vector3_zero();
     
     // No texture for now
-    cubeMesh->texture.internalBuffer = NULL;
-    cubeMesh->texture.width = 0;
-    cubeMesh->texture.height = 0;
+    cubeMesh->texture = *texture_load("g.bmp");
+    //cubeMesh->texture.internalBuffer = NULL;
+    //cubeMesh->texture.width = 0;
+    //cubeMesh->texture.height = 0;
 }
 
 static void drawfnc() {
-    // Clear the device buffer
-    device_clear(device);
+    // Clear the m_device buffer
+    device_clear(m_device);
     
     // Rotate the cube
     cubeMesh->Rotation.x += 0.01;
     cubeMesh->Rotation.y += 0.01;
     
     // Render the mesh
-    device_render(device, &camera, cubeMesh, 1);
+    device_render(m_device, &camera, cubeMesh, 1);
     
     // Present to screen
     flushscreen();
@@ -98,9 +99,9 @@ static void cleanup() {
         mesh_free(cubeMesh);
         cubeMesh = NULL;
     }
-    if(device) {
-        device_free(device);
-        device = NULL;
+    if(m_device) {
+        device_free(m_device);
+        m_device = NULL;
     }
 }
 
@@ -109,10 +110,10 @@ int main(int argc, char** argv) {
     screen(width, height);
     screentitle("Babylon 3D - Rotating Cube Demo");
     
-    // Create the rendering device
-    device = device(width, height);
-    if(!device) {
-        fprintf(stderr, "Failed to create device\n");
+    // Create the rendering m_device
+    m_device = device(width, height);
+    if(!m_device) {
+        fprintf(stderr, "Failed to create m_device\n");
         return 1;
     }
     
