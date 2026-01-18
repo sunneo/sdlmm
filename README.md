@@ -310,7 +310,7 @@ SDLMM has been optimized to prevent memory leaks:
 
 ## 🐛 Known Limitations
 
-- Built for SDL 1.2 (older version, but stable and well-supported)
+- Built for SDL 1.2 (deprecated but stable; SDL 2.0+ migration recommended for new projects)
 - 3D rendering is software-based (no GPU acceleration)
 - Audio format limited to 44.1kHz stereo PCM
 - No built-in sprite or scene management
