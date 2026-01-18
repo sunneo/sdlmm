@@ -310,12 +310,13 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
     
+    xlen=minx-x;  // Calculate once for all paths
+    
 #ifdef USE_SIMD_X86
     // SSE2 optimized pixel copy for x86/x64
     // Using unaligned loads/stores as SDL surfaces may not be 16-byte aligned
     {
         int pixels_offset = 0;
-        xlen=minx-x;
         
         for(j=y; j<miny; ++j) {
             Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
@@ -341,7 +342,6 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
     // NEON optimized pixel copy for ARM
     {
         int pixels_offset = 0;
-        xlen=minx-x;
         
         for(j=y; j<miny; ++j) {
             Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;

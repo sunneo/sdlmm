@@ -657,37 +657,39 @@ void device_clear(Device* dev){
     
 #ifdef USE_SIMD_X86
     // SSE2 optimized clear for x86/x64
-    __m128i zero = _mm_setzero_si128();
-    __m128i depth_val = _mm_set1_epi32(10000000);
-    
-    int simd_end = (e / 4) * 4;  // Process 4 integers at a time
-    
-    for (i = 0; i < simd_end; i += 4) {
-        _mm_storeu_si128((__m128i*)&backbuffer[i], zero);
-        _mm_storeu_si128((__m128i*)&depthbuffer[i], depth_val);
-    }
-    
-    // Handle remaining elements
-    for (i = simd_end; i < e; i++) {
-        backbuffer[i] = 0;
-        depthbuffer[i] = 10000000;
+    {
+        __m128i zero = _mm_setzero_si128();
+        __m128i depth_val = _mm_set1_epi32(10000000);
+        int simd_end = (e / 4) * 4;  // Process 4 integers at a time
+        
+        for (i = 0; i < simd_end; i += 4) {
+            _mm_storeu_si128((__m128i*)&backbuffer[i], zero);
+            _mm_storeu_si128((__m128i*)&depthbuffer[i], depth_val);
+        }
+        
+        // Handle remaining elements
+        for (i = simd_end; i < e; i++) {
+            backbuffer[i] = 0;
+            depthbuffer[i] = 10000000;
+        }
     }
 #elif defined(USE_SIMD_ARM)
     // NEON optimized clear for ARM
-    int32x4_t zero = vdupq_n_s32(0);
-    int32x4_t depth_val = vdupq_n_s32(10000000);
-    
-    int simd_end = (e / 4) * 4;  // Process 4 integers at a time
-    
-    for (i = 0; i < simd_end; i += 4) {
-        vst1q_s32(&backbuffer[i], zero);
-        vst1q_s32(&depthbuffer[i], depth_val);
-    }
-    
-    // Handle remaining elements
-    for (i = simd_end; i < e; i++) {
-        backbuffer[i] = 0;
-        depthbuffer[i] = 10000000;
+    {
+        int32x4_t zero = vdupq_n_s32(0);
+        int32x4_t depth_val = vdupq_n_s32(10000000);
+        int simd_end = (e / 4) * 4;  // Process 4 integers at a time
+        
+        for (i = 0; i < simd_end; i += 4) {
+            vst1q_s32(&backbuffer[i], zero);
+            vst1q_s32(&depthbuffer[i], depth_val);
+        }
+        
+        // Handle remaining elements
+        for (i = simd_end; i < e; i++) {
+            backbuffer[i] = 0;
+            depthbuffer[i] = 10000000;
+        }
     }
 #else
     // Fallback to OpenMP parallelization
