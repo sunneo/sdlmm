@@ -608,9 +608,13 @@ static int texture_map(const Texture* tex, float tu,float tv){
    
    // Convert to texture space - multiply by (width-1) and (height-1)
    // so that UV=1.0 maps to the last pixel correctly
+   // Example: width=256, tu=1.0 -> u=255 (valid index 0-255)
    int u = (int)(tu * (tex->width - 1));
    int v = (int)(tv * (tex->height - 1));
    
+   // Calculate position: u + v * width
+   // Max position: (width-1) + (height-1) * width = width-1 + width*height - width 
+   //             = width*height - 1 (valid for buffer of size width*height)
    int pos = (u + v * tex->width);
    return tex->internalBuffer[pos];
 }

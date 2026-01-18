@@ -119,12 +119,16 @@ static void createCube() {
     cubeMesh->Position = vector3(0, 0, 10);
     cubeMesh->Rotation = vector3_zero();
     
-    // Load texture
+    // Load texture - Note: we keep the loaded texture pointer structure
+    // but the internalBuffer is owned by the mesh now
     Texture* loadedTexture = texture_load("texture.png");
-    if(loadedTexture) {
+    if(loadedTexture && loadedTexture->internalBuffer) {
         cubeMesh->texture = *loadedTexture;
-        free(loadedTexture); // Free the wrapper, but keep the internal buffer
+        // Don't call texture_unload here as it would free the internalBuffer
+        // Just free the Texture structure wrapper
+        free(loadedTexture);
     } else {
+        if(loadedTexture) free(loadedTexture);
         fprintf(stderr, "Warning: Failed to load texture.png, cube will render without texture\n");
         cubeMesh->texture.internalBuffer = NULL;
         cubeMesh->texture.width = 0;
