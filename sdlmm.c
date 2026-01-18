@@ -12,6 +12,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+
+// SIMD intrinsics for hardware acceleration
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
+    #define USE_SIMD_X86
+    #include <emmintrin.h>  // SSE2
+    #ifdef __AVX__
+        #include <immintrin.h>  // AVX
+    #endif
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    #define USE_SIMD_ARM
+    #include <arm_neon.h>
+#endif
 #ifndef __func__
 #  define __func__ __FUNCTION__
 #endif
@@ -297,6 +309,57 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
+    
+#ifdef USE_SIMD_X86
+    // SSE2 optimized pixel copy for x86/x64
+    xlen=minx-x;
+    int pixels_offset = 0;
+    
+    for(j=y; j<miny; ++j) {
+        Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
+        Uint32* src_ptr = &pixels[pixels_offset];
+        int row_pixels = xlen;
+        int simd_pixels = (row_pixels / 4) * 4;  // Process 4 pixels at a time
+        
+        // SIMD loop - unaligned loads/stores
+        for(i=0; i<simd_pixels; i+=4) {
+            __m128i pixel_data = _mm_loadu_si128((__m128i*)&src_ptr[i]);
+            _mm_storeu_si128((__m128i*)(row_ptr + i*4), pixel_data);
+        }
+        
+        // Remaining pixels
+        for(i=simd_pixels; i<row_pixels; ++i) {
+            *((Uint32*)(row_ptr + i*4)) = src_ptr[i];
+        }
+        
+        pixels_offset += xlen;
+    }
+#elif defined(USE_SIMD_ARM)
+    // NEON optimized pixel copy for ARM
+    xlen=minx-x;
+    int pixels_offset = 0;
+    
+    for(j=y; j<miny; ++j) {
+        Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
+        uint32_t* src_ptr = (uint32_t*)&pixels[pixels_offset];
+        int row_pixels = xlen;
+        int simd_pixels = (row_pixels / 4) * 4;  // Process 4 pixels at a time
+        
+        // SIMD loop
+        for(i=0; i<simd_pixels; i+=4) {
+            uint32x4_t pixel_data = vld1q_u32(&src_ptr[i]);
+            vst1q_u32((uint32_t*)(row_ptr + i*4), pixel_data);
+        }
+        
+        // Remaining pixels
+        for(i=simd_pixels; i<row_pixels; ++i) {
+            *((Uint32*)(row_ptr + i*4)) = src_ptr[i];
+        }
+        
+        pixels_offset += xlen;
+    }
+#else
+    // Fallback: OpenMP parallel version
 #if 0
     for(j=y; j<miny; ++j) {
         for(i=x; i<minx; ++i) {
@@ -315,6 +378,7 @@ static void sdldrawpixels(SDL_Surface *Screen,Uint32* pixels, int x, int y, int 
            sdlset_pixel_nocheck(Screen,i2,j2,pixels[ii]);
        }
 
+#endif
 #endif
 
     SDL_UnlockSurface(Screen);
@@ -363,6 +427,49 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
     if(x<0) x = 0;
     if(y<0) y = 0;
     SDL_LockSurface(Screen);
+    
+#ifdef USE_SIMD_X86
+    // SSE2 optimized fill for x86/x64
+    xlen=minx-x; ylen=miny-y;
+    __m128i color_vec = _mm_set1_epi32(color);
+    
+    for(j=y; j<miny; ++j) {
+        Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
+        int row_pixels = xlen;
+        int simd_pixels = (row_pixels / 4) * 4;  // Process 4 pixels at a time
+        
+        // SIMD loop
+        for(i=0; i<simd_pixels; i+=4) {
+            _mm_storeu_si128((__m128i*)(row_ptr + i*4), color_vec);
+        }
+        
+        // Remaining pixels
+        for(i=simd_pixels; i<row_pixels; ++i) {
+            *((Uint32*)(row_ptr + i*4)) = color;
+        }
+    }
+#elif defined(USE_SIMD_ARM)
+    // NEON optimized fill for ARM
+    xlen=minx-x; ylen=miny-y;
+    uint32x4_t color_vec = vdupq_n_u32(color);
+    
+    for(j=y; j<miny; ++j) {
+        Uint8* row_ptr = (Uint8*)Screen->pixels + j * Screen->pitch + x * 4;
+        int row_pixels = xlen;
+        int simd_pixels = (row_pixels / 4) * 4;  // Process 4 pixels at a time
+        
+        // SIMD loop
+        for(i=0; i<simd_pixels; i+=4) {
+            vst1q_u32((uint32_t*)(row_ptr + i*4), color_vec);
+        }
+        
+        // Remaining pixels
+        for(i=simd_pixels; i<row_pixels; ++i) {
+            *((Uint32*)(row_ptr + i*4)) = color;
+        }
+    }
+#else
+    // Fallback: OpenMP parallel version
 #if 0
     for(j=y; j<miny ; ++j) {
         for(i=x; i<minx; ++i) {
@@ -385,6 +492,7 @@ static void sdlfillrect(SDL_Surface *Screen,int x, int y, int w, int h,Uint32 co
            sdlset_pixel_nocheck(Screen,i2,j2,color);
        }
 
+#endif
 #endif
 
     SDL_UnlockSurface(Screen);

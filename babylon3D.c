@@ -2,6 +2,18 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
+
+// SIMD intrinsics for hardware acceleration
+#if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
+    #define USE_SIMD_X86
+    #include <emmintrin.h>  // SSE2
+    #ifdef __AVX__
+        #include <immintrin.h>  // AVX
+    #endif
+#elif defined(__ARM_NEON) || defined(__ARM_NEON__)
+    #define USE_SIMD_ARM
+    #include <arm_neon.h>
+#endif
 typedef struct Vector2{
    float x,y;
 }Vector2;
@@ -642,11 +654,49 @@ void device_clear(Device* dev){
     int i,e=dev->workingHeight*dev->workingWidth;
     int* backbuffer=dev->backbuffer;
     int* depthbuffer=dev->depthbuffer;
+    
+#ifdef USE_SIMD_X86
+    // SSE2 optimized clear for x86/x64
+    __m128i zero = _mm_setzero_si128();
+    __m128i depth_val = _mm_set1_epi32(10000000);
+    
+    int simd_end = (e / 4) * 4;  // Process 4 integers at a time
+    
+    for (i = 0; i < simd_end; i += 4) {
+        _mm_storeu_si128((__m128i*)&backbuffer[i], zero);
+        _mm_storeu_si128((__m128i*)&depthbuffer[i], depth_val);
+    }
+    
+    // Handle remaining elements
+    for (i = simd_end; i < e; i++) {
+        backbuffer[i] = 0;
+        depthbuffer[i] = 10000000;
+    }
+#elif defined(USE_SIMD_ARM)
+    // NEON optimized clear for ARM
+    int32x4_t zero = vdupq_n_s32(0);
+    int32x4_t depth_val = vdupq_n_s32(10000000);
+    
+    int simd_end = (e / 4) * 4;  // Process 4 integers at a time
+    
+    for (i = 0; i < simd_end; i += 4) {
+        vst1q_s32(&backbuffer[i], zero);
+        vst1q_s32(&depthbuffer[i], depth_val);
+    }
+    
+    // Handle remaining elements
+    for (i = simd_end; i < e; i++) {
+        backbuffer[i] = 0;
+        depthbuffer[i] = 10000000;
+    }
+#else
+    // Fallback to OpenMP parallelization
 #pragma omp parallel for firstprivate(backbuffer,depthbuffer)
     for (i = 0; i < e; i++) {
         depthbuffer[i] = 10000000;
         backbuffer[i]=0;
     }
+#endif
 }
 static void device_present(Device* dev){
     drawpixels(dev->backbuffer,0,0,dev->workingWidth,dev->workingHeight);
