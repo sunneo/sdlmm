@@ -764,7 +764,7 @@ static int device_color4(int r,int g,int b,int a){
     return 0x010000*r+(0x000100)*g+0x000001*b+0x01000000*a;
 }
 static int device_color4ref(int refColr,float r,float g,float b,float a){
-    return device_color4((int)(0xff0000&refColr)*r,(int)(0x00ff00&refColr)*g,(int)(0x0000ff&refColr)*b,(int)(0xff000000&refColr)*a);
+    return device_color4((int)(((refColr>>16)&0xff)*r),(int)(((refColr>>8)&0xff)*g),(int)((refColr&0xff)*b),(int)(((refColr>>24)&0xff)*a));
 }
 typedef struct DrawData{
     float currentY;
@@ -793,7 +793,7 @@ static void device_processScanLine(Device* dev,const DrawData* data,const Vertex
     float currentY=data->currentY;
 #pragma omp parallel for firstprivate(z1,z2,snl,enl,su,eu,sv,ev,texture)
     for (x = sx; x < ex; x++) {
-        float gradient = (x - sx) / (ex - sx);
+        float gradient = (ex > sx) ? ((float)(x - sx) / (float)(ex - sx)) : 0.0f;
 
         float z = device_interpolate(z1, z2, gradient);
         float ndotl = device_interpolate(snl, enl, gradient) * color;
