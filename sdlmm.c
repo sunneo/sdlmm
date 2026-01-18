@@ -101,6 +101,7 @@ void loadimage(const char* filename,int** ret,int* w,int *h) {
     if(isBMP) {
         img = SDL_LoadBMP(filename);
         surface_to_array(img,ret,w,h);
+        SDL_FreeSurface(img);
     }
     else {
         img = IMG_Load(filename);
@@ -109,6 +110,7 @@ void loadimage(const char* filename,int** ret,int* w,int *h) {
             return;
         }
         surface_to_array(img,ret,w,h);
+        SDL_FreeSurface(img);
     }
 }
 void setonkey(void(*fnc)(int key,int ctrl,int on)) {
@@ -519,6 +521,23 @@ typedef struct ThreadParam {
 } ThreadParam;
 static void ft_atexit() {
 #ifndef NOFREETYPE
+    // Clean up font cache
+    int i;
+    for(i = 0; i < freeTypeResultMap.cnt; ++i) {
+        if(freeTypeResultMap.map[i] && freeTypeResultMap.map[i]->pixels) {
+            free(freeTypeResultMap.map[i]->pixels);
+            freeTypeResultMap.map[i]->pixels = NULL;
+        }
+        if(freeTypeResultMap.map[i]) {
+            free(freeTypeResultMap.map[i]);
+            freeTypeResultMap.map[i] = NULL;
+        }
+    }
+    freeTypeResultMap.cnt = 0;
+    if(ft_face) {
+        FT_Done_Face(ft_face);
+        ft_face = NULL;
+    }
     FT_Done_FreeType(ft_library);
 #endif
 }
@@ -673,6 +692,7 @@ static void init_manual( ThreadParam* param) {
 static int sdl_draw_thfnc(void* dummy) {
     ThreadParam* param = (ThreadParam*)dummy;
     init_manual(param);
+    free(param);  // Free after initialization is complete
     while(1) {
         sdl_main_run();
     }
@@ -700,6 +720,7 @@ static void screen_internal(int width,int height,int manual,const char* title) {
         drawthread_created = 1;
         if(manual){
            init_manual(p);
+           free(p);  // Free after manual initialization
            screentitle(title);
            sdl_main_run();
         }
@@ -1127,12 +1148,16 @@ static __inline__ void sdl_arr_add_up_left_right_down(SDL_Surface* surface,int x
 }
 
 static void sdlfillxy(SDL_Surface* surface,int x,int y,Uint32 color2){
-   static int* sdlfillArr;
+   static int* sdlfillArr = NULL;
    static int sdlfillback = 0;
    static int sdlfillsize=1;
    int front=0;
    if(!sdlfillArr){
       sdlfillArr=(int*)malloc(sizeof(int)*2);
+      if(!sdlfillArr) {
+          fprintf(stderr,"%s %d %s:(malloc failed) %s\n", __FILE__,__LINE__,__func__,strerror(errno));
+          return;
+      }
    }
    Uint32 color1 = sdlget_pixel(surface,x,y);
    sdl_arr_add_up_left_right_down(surface,x,y,color1,&sdlfillArr,&sdlfillsize,&sdlfillback,color2);
