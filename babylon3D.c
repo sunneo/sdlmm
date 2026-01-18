@@ -596,7 +596,7 @@ typedef struct Device{
 
 
 static int texture_map(const Texture* tex, float tu,float tv){
-   if(tex->internalBuffer == NULL){
+   if(tex->internalBuffer == NULL || tex->width <= 0 || tex->height <= 0){
       return 0;
    }
    

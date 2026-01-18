@@ -120,7 +120,16 @@ static void createCube() {
     cubeMesh->Rotation = vector3_zero();
     
     // Load texture
-    cubeMesh->texture = *texture_load("texture.png");
+    Texture* loadedTexture = texture_load("texture.png");
+    if(loadedTexture) {
+        cubeMesh->texture = *loadedTexture;
+        free(loadedTexture); // Free the wrapper, but keep the internal buffer
+    } else {
+        fprintf(stderr, "Warning: Failed to load texture.png, cube will render without texture\n");
+        cubeMesh->texture.internalBuffer = NULL;
+        cubeMesh->texture.width = 0;
+        cubeMesh->texture.height = 0;
+    }
 }
 
 static void drawfnc() {
