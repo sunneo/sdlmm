@@ -4,6 +4,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Constants for placeholder cube mesh
+#define CUBE_VERTICES 8
+#define CUBE_FACES 12
+
 // Helper function to read file contents
 static char* read_file(const char* filename) {
     FILE* file = fopen(filename, "r");
@@ -559,12 +563,7 @@ Scene3D* scene3d_load_from_json(const char* filename) {
             
             // For now, create a simple cube mesh as placeholder
             // In a real implementation, you would load the model from file
-            // Using constants for cube vertices (8 vertices, 12 triangular faces)
-            #define CUBE_VERTICES 8
-            #define CUBE_FACES 12
             model.mesh = softengine_mesh("placeholder", CUBE_VERTICES, CUBE_FACES);
-            #undef CUBE_VERTICES
-            #undef CUBE_FACES
             if (model.mesh) {
                 model.mesh->Position = model.position;
                 model.mesh->Rotation = model.rotation;
@@ -671,6 +670,7 @@ void scene3d_render(const Scene3D* scene, Device* device) {
     
     // Prepare mesh array for rendering
     // Note: device_render expects an array of Mesh structures, not pointers
+    // We create a copy array to ensure proper memory layout
     Mesh* meshArray = (Mesh*)malloc(sizeof(Mesh) * scene->modelCount);
     if (!meshArray) return;
     
@@ -680,7 +680,7 @@ void scene3d_render(const Scene3D* scene, Device* device) {
         }
     }
     
-    // Render all meshes
+    // Render all meshes - cast is safe as meshArray is already Mesh*
     device_render(device, &scene->camera, (const Mesh*)meshArray, scene->modelCount);
     
     free(meshArray);
