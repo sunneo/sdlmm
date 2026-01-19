@@ -1011,7 +1011,7 @@ Mesh* mesh_load_obj(const char* filename) {
     int texCoordCount = 0;
     int faceCount = 0;
     
-    char line[256];
+    char line[1024];  // Increased buffer size for longer lines
     while (fgets(line, sizeof(line), file)) {
         if (line[0] == 'v' && line[1] == ' ') vertexCount++;
         else if (line[0] == 'v' && line[1] == 'n') normalCount++;
@@ -1029,6 +1029,15 @@ Mesh* mesh_load_obj(const char* filename) {
     Vector3* vertices = (Vector3*)malloc(sizeof(Vector3) * vertexCount);
     Vector3* normals = normalCount > 0 ? (Vector3*)malloc(sizeof(Vector3) * normalCount) : NULL;
     Vector3* texCoords = texCoordCount > 0 ? (Vector3*)malloc(sizeof(Vector3) * texCoordCount) : NULL;
+    
+    if (!vertices || (normalCount > 0 && !normals) || (texCoordCount > 0 && !texCoords)) {
+        printf("Error: Failed to allocate memory for OBJ data\n");
+        if (vertices) free(vertices);
+        if (normals) free(normals);
+        if (texCoords) free(texCoords);
+        fclose(file);
+        return NULL;
+    }
     
     // Second pass: read vertex data
     rewind(file);
@@ -1054,6 +1063,14 @@ Mesh* mesh_load_obj(const char* filename) {
     
     // Create mesh - we need unique vertices for each face vertex
     Mesh* mesh = softengine_mesh(filename, faceCount * 3, faceCount);
+    if (!mesh) {
+        printf("Error: Failed to create mesh\n");
+        free(vertices);
+        if (normals) free(normals);
+        if (texCoords) free(texCoords);
+        fclose(file);
+        return NULL;
+    }
     
     // Third pass: read faces
     rewind(file);
@@ -1097,6 +1114,14 @@ Mesh* mesh_load_obj(const char* filename) {
             if (vn1 > 0) vn1--;
             if (vn2 > 0) vn2--;
             if (vn3 > 0) vn3--;
+            
+            // Validate vertex indices
+            if (v1 < 0 || v1 >= vertexCount || 
+                v2 < 0 || v2 >= vertexCount || 
+                v3 < 0 || v3 >= vertexCount) {
+                printf("Warning: Invalid vertex indices in face %d, skipping\n", fIdx + 1);
+                continue;
+            }
             
             // Create unique vertices for this face
             mesh->Vertices[uniqueVertIdx].Coordinates = vertices[v1];

@@ -522,9 +522,22 @@ static Mesh* mesh_load_from_json(cJSON* meshData, const char* name) {
         
         // Face is an array [A, B, C] of vertex indices
         if (cJSON_IsArray(faceItem) && cJSON_GetArraySize(faceItem) >= 3) {
-            mesh->faces[fIdx].A = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 0));
-            mesh->faces[fIdx].B = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 1));
-            mesh->faces[fIdx].C = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 2));
+            int a = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 0));
+            int b = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 1));
+            int c = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 2));
+            
+            // Validate vertex indices
+            if (a < 0 || a >= vertexCount || 
+                b < 0 || b >= vertexCount || 
+                c < 0 || c >= vertexCount) {
+                printf("Warning: Invalid vertex indices in face %d [%d, %d, %d], skipping\n", 
+                       fIdx, a, b, c);
+                continue;
+            }
+            
+            mesh->faces[fIdx].A = a;
+            mesh->faces[fIdx].B = b;
+            mesh->faces[fIdx].C = c;
         }
         
         fIdx++;
