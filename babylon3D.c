@@ -14,6 +14,10 @@
     #define USE_SIMD_ARM
     #include <arm_neon.h>
 #endif
+
+// Epsilon for perspective-correct texture mapping depth threshold
+#define PERSPECTIVE_EPSILON 0.0001f
+
 typedef struct Vector2{
    float x,y;
 }Vector2;
@@ -766,6 +770,12 @@ int device_color4(int r,int g,int b,int a){
 int device_color4ref(int refColr,float r,float g,float b,float a){
     return device_color4((int)(((refColr>>16)&0xff)*r),(int)(((refColr>>8)&0xff)*g),(int)((refColr&0xff)*b),(int)(((refColr>>24)&0xff)*a));
 }
+
+// Helper function to safely calculate 1/z for perspective-correct texture mapping
+static inline float calculate_inverse_z(float z) {
+    return (z != 0.0f) ? 1.0f / z : 0.0f;
+}
+
 typedef struct DrawData{
     float currentY;
     float ndotla,ndotlb,ndotlc,ndotld;
@@ -813,7 +823,7 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
         float v = device_interpolate(sv, ev, gradient);
         
         // Divide by interpolated 1/z to get correct perspective texture coordinates
-        if (sz > 0.0001f) {  // Avoid division by zero
+        if (sz > PERSPECTIVE_EPSILON) {  // Avoid division by zero
             u /= sz;
             v /= sz;
         }
@@ -879,9 +889,9 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                         data.ndotld = nl2;
 
                         // Calculate 1/z for perspective-correct texture mapping
-                        float z1_inv = (v1->Coordinates.z != 0.0f) ? 1.0f / v1->Coordinates.z : 0.0f;
-                        float z2_inv = (v2->Coordinates.z != 0.0f) ? 1.0f / v2->Coordinates.z : 0.0f;
-                        float z3_inv = (v3->Coordinates.z != 0.0f) ? 1.0f / v3->Coordinates.z : 0.0f;
+                        float z1_inv = calculate_inverse_z(v1->Coordinates.z);
+                        float z2_inv = calculate_inverse_z(v2->Coordinates.z);
+                        float z3_inv = calculate_inverse_z(v3->Coordinates.z);
 
                         // Store u/z, v/z, and 1/z
                         data.ua = v1->TextureCoordinates.x * z1_inv;
@@ -907,9 +917,9 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                         data.ndotld = nl3;
 
                         // Calculate 1/z for perspective-correct texture mapping
-                        float z1_inv = (v1->Coordinates.z != 0.0f) ? 1.0f / v1->Coordinates.z : 0.0f;
-                        float z2_inv = (v2->Coordinates.z != 0.0f) ? 1.0f / v2->Coordinates.z : 0.0f;
-                        float z3_inv = (v3->Coordinates.z != 0.0f) ? 1.0f / v3->Coordinates.z : 0.0f;
+                        float z1_inv = calculate_inverse_z(v1->Coordinates.z);
+                        float z2_inv = calculate_inverse_z(v2->Coordinates.z);
+                        float z3_inv = calculate_inverse_z(v3->Coordinates.z);
 
                         // Store u/z, v/z, and 1/z
                         data.ua = v1->TextureCoordinates.x * z1_inv;
@@ -942,9 +952,9 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                         data.ndotld = nl3;
 
                         // Calculate 1/z for perspective-correct texture mapping
-                        float z1_inv = (v1->Coordinates.z != 0.0f) ? 1.0f / v1->Coordinates.z : 0.0f;
-                        float z2_inv = (v2->Coordinates.z != 0.0f) ? 1.0f / v2->Coordinates.z : 0.0f;
-                        float z3_inv = (v3->Coordinates.z != 0.0f) ? 1.0f / v3->Coordinates.z : 0.0f;
+                        float z1_inv = calculate_inverse_z(v1->Coordinates.z);
+                        float z2_inv = calculate_inverse_z(v2->Coordinates.z);
+                        float z3_inv = calculate_inverse_z(v3->Coordinates.z);
 
                         // Store u/z, v/z, and 1/z
                         data.ua = v1->TextureCoordinates.x * z1_inv;
@@ -970,9 +980,9 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                         data.ndotld = nl3;
 
                         // Calculate 1/z for perspective-correct texture mapping
-                        float z1_inv = (v1->Coordinates.z != 0.0f) ? 1.0f / v1->Coordinates.z : 0.0f;
-                        float z2_inv = (v2->Coordinates.z != 0.0f) ? 1.0f / v2->Coordinates.z : 0.0f;
-                        float z3_inv = (v3->Coordinates.z != 0.0f) ? 1.0f / v3->Coordinates.z : 0.0f;
+                        float z1_inv = calculate_inverse_z(v1->Coordinates.z);
+                        float z2_inv = calculate_inverse_z(v2->Coordinates.z);
+                        float z3_inv = calculate_inverse_z(v3->Coordinates.z);
 
                         // Store u/z, v/z, and 1/z
                         data.ua = v2->TextureCoordinates.x * z2_inv;
