@@ -795,7 +795,7 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
     // Parallelize at scanline pixel level - each thread processes different X coordinates
     // This avoids race conditions because each thread writes to different pixels
     // Only parallelize if scanline is long enough to justify threading overhead
-    #pragma omp parallel for if((ex - sx) > 64) schedule(static)
+    #pragma omp parallel for if((ex - sx) > 512) schedule(static)
     for (x = sx; x < ex; x++) {
         float gradient = (ex > sx) ? ((float)(x - sx) / (float)(ex - sx)) : 0.0f;
 
