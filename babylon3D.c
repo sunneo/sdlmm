@@ -27,143 +27,143 @@ typedef struct Matrix{
 }Matrix;
 
 
-static Vector2 vector2(float x,float y);
-static char* vector2_tostring(const Vector2* vec,char* buf,int size);
-static Vector2 vector2_add(const Vector2* a,const Vector2* b);
-static Vector2 vector2_subtract(const Vector2* a,const Vector2* b);
-static Vector2 vector2_negate(const Vector2* a);
-static Vector2 vector2_scale(const Vector2* a,float s);
-static int vector2_equals(const Vector2* a,const Vector2* b);
-static float vector2_length(const Vector2* a);
-static float vector2_lengthSquare(const Vector2* a);
-static void vector2_normalize(Vector2* a);
-static Vector2 vector2_zero();
-static Vector2 vector2_copy(const Vector2* a);
-static Vector2 vector2_normalize_copy(const Vector2* a);
-static Vector2 vector2_min(const Vector2* a, const Vector2* b);
-static Vector2 vector2_max(const Vector2* a, const Vector2* b);
-static Vector2 vector2_transform(const Vector2* a, const Matrix* transformation) ;
-static float vector2_distanceSquared(const Vector2* a,const Vector2* b);
-static float vector2_distance(const Vector2* a,const Vector2* b);
+Vector2 vector2(float x,float y);
+char* vector2_tostring(const Vector2* vec,char* buf,int size);
+Vector2 vector2_add(const Vector2* a,const Vector2* b);
+Vector2 vector2_subtract(const Vector2* a,const Vector2* b);
+Vector2 vector2_negate(const Vector2* a);
+Vector2 vector2_scale(const Vector2* a,float s);
+int vector2_equals(const Vector2* a,const Vector2* b);
+float vector2_length(const Vector2* a);
+float vector2_lengthSquare(const Vector2* a);
+void vector2_normalize(Vector2* a);
+Vector2 vector2_zero();
+Vector2 vector2_copy(const Vector2* a);
+Vector2 vector2_normalize_copy(const Vector2* a);
+Vector2 vector2_min(const Vector2* a, const Vector2* b);
+Vector2 vector2_max(const Vector2* a, const Vector2* b);
+Vector2 vector2_transform(const Vector2* a, const Matrix* transformation) ;
+float vector2_distanceSquared(const Vector2* a,const Vector2* b);
+float vector2_distance(const Vector2* a,const Vector2* b);
 
-static Vector3 vector3(float x,float y,float z);
-static const char* vector3_tostring(const Vector3* a,char* buf,int sz);
-static Vector3 vector3_add(const Vector3* a,const Vector3* b);
-static Vector3 vector3_subtract(const Vector3* a,const Vector3* b);
-static Vector3 vector3_negate(const Vector3* a);
-static Vector3 vector3_scale(const Vector3* a,float s);
-static int vector3_equals(const Vector3* a,const Vector3* b);
-static Vector3 vector3_multiply(const Vector3* a,const Vector3* b);
-static Vector3 vector3_divide(const Vector3* a,const Vector3* b);
-static float vector3_lengthSquare(const Vector3* a);
-static float vector3_length(const Vector3* a);
-static void vector3_normalize(Vector3* a);
-static Vector3 vector3_fromArray(float* f,int offset);
-static Vector3 vector3_zero();
-static Vector3 vector3_up();
-static Vector3 vector3_copy(const Vector3* a);
-static Vector3 vector3_transform_coordinates(const Vector3* vector,const Matrix* transformation);
-static Vector3 vector3_transform_normal(const Vector3* vector, const Matrix* transformation) ;
-static float vector3_dot(const Vector3* left,const Vector3* right);
-static Vector3 vector3_cross(const Vector3* left,const Vector3* right);
-static Vector3 vector3_normalize_copy(const Vector3* vector);
-static float vector3_distance(const Vector3* value1,const Vector3*  value2);
-static float vector3_distanceSquared(const Vector3* value1,const Vector3*  value2);
+Vector3 vector3(float x,float y,float z);
+const char* vector3_tostring(const Vector3* a,char* buf,int sz);
+Vector3 vector3_add(const Vector3* a,const Vector3* b);
+Vector3 vector3_subtract(const Vector3* a,const Vector3* b);
+Vector3 vector3_negate(const Vector3* a);
+Vector3 vector3_scale(const Vector3* a,float s);
+int vector3_equals(const Vector3* a,const Vector3* b);
+Vector3 vector3_multiply(const Vector3* a,const Vector3* b);
+Vector3 vector3_divide(const Vector3* a,const Vector3* b);
+float vector3_lengthSquare(const Vector3* a);
+float vector3_length(const Vector3* a);
+void vector3_normalize(Vector3* a);
+Vector3 vector3_fromArray(float* f,int offset);
+Vector3 vector3_zero();
+Vector3 vector3_up();
+Vector3 vector3_copy(const Vector3* a);
+Vector3 vector3_transform_coordinates(const Vector3* vector,const Matrix* transformation);
+Vector3 vector3_transform_normal(const Vector3* vector, const Matrix* transformation) ;
+float vector3_dot(const Vector3* left,const Vector3* right);
+Vector3 vector3_cross(const Vector3* left,const Vector3* right);
+Vector3 vector3_normalize_copy(const Vector3* vector);
+float vector3_distance(const Vector3* value1,const Vector3*  value2);
+float vector3_distanceSquared(const Vector3* value1,const Vector3*  value2);
 
-static Matrix matrix();
-static int matrix_isIdentity(const Matrix* a);
-static float matrix_determinant(const Matrix* a);
-static float* matrix_toArray(Matrix* a);
-static void matrix_invert(Matrix* a) ;
-static Matrix matrix_multiply(const Matrix* a,const Matrix* other) ;
-static int matrix_equals(const Matrix* a,const Matrix* value) ;
-static Matrix matrix_fromValues(float initialM11,float  initialM12,float  initialM13,float  initialM14,float  initialM21,float  initialM22, float initialM23,float  initialM24,float  initialM31,float  initialM32,float  initialM33,float  initialM34,float  initialM41,float  initialM42,float  initialM43,float  initialM44) ;
-static Matrix matrix_Identity();
-static Matrix matrix_Zero() ;
-static Matrix matrix_Copy(const Matrix* source) ;
-static Matrix matrix_RotationX(float angle) ;
-static Matrix matrix_RotationY(float angle) ;
-static Matrix matrix_RotationZ(float angle);
-static Matrix matrix_RotationAxis(Vector3* axis, float angle) ; // FIXME
-static Matrix matrix_RotationYawPitchRoll(float yaw,float pitch,float roll) ;
-static Matrix matrix_scaling(float x, float y, float z) ;
-static Matrix matrix_Translation(float x,float y,float z) ;
-static Matrix matrix_LookAtLH(const Vector3* eye,const Vector3* target,const Vector3* up) ;
-static Matrix matrix_PerspectiveLH(float width,float height,float znear,float zfar);
-static Matrix matrix_PerspectiveFovLH(float fov,float aspect,float znear,float zfar) ;
-static Matrix matrix_Transpose(const Matrix* matrix) ;
+Matrix matrix();
+int matrix_isIdentity(const Matrix* a);
+float matrix_determinant(const Matrix* a);
+float* matrix_toArray(Matrix* a);
+void matrix_invert(Matrix* a) ;
+Matrix matrix_multiply(const Matrix* a,const Matrix* other) ;
+int matrix_equals(const Matrix* a,const Matrix* value) ;
+Matrix matrix_fromValues(float initialM11,float  initialM12,float  initialM13,float  initialM14,float  initialM21,float  initialM22, float initialM23,float  initialM24,float  initialM31,float  initialM32,float  initialM33,float  initialM34,float  initialM41,float  initialM42,float  initialM43,float  initialM44) ;
+Matrix matrix_Identity();
+Matrix matrix_Zero() ;
+Matrix matrix_Copy(const Matrix* source) ;
+Matrix matrix_RotationX(float angle) ;
+Matrix matrix_RotationY(float angle) ;
+Matrix matrix_RotationZ(float angle);
+Matrix matrix_RotationAxis(Vector3* axis, float angle) ; // FIXME
+Matrix matrix_RotationYawPitchRoll(float yaw,float pitch,float roll) ;
+Matrix matrix_scaling(float x, float y, float z) ;
+Matrix matrix_Translation(float x,float y,float z) ;
+Matrix matrix_LookAtLH(const Vector3* eye,const Vector3* target,const Vector3* up) ;
+Matrix matrix_PerspectiveLH(float width,float height,float znear,float zfar);
+Matrix matrix_PerspectiveFovLH(float fov,float aspect,float znear,float zfar) ;
+Matrix matrix_Transpose(const Matrix* matrix) ;
 
 
-static Vector2 vector2(float x,float y){
+Vector2 vector2(float x,float y){
     Vector2 ret;
     ret.x=x; ret.y=y;
     return ret; 
 }
 
-static char* vector2_tostring(const Vector2* vec,char* buf,int size){
+char* vector2_tostring(const Vector2* vec,char* buf,int size){
     snprintf(buf,size,"{X: %f,Y: %f}",vec->x,vec->y);
     return buf;
 }
 
-static Vector2 vector2_add(const Vector2* a,const Vector2* b){
+Vector2 vector2_add(const Vector2* a,const Vector2* b){
     return vector2(a->x+b->x,a->y+b->y);
 }
-static Vector2 vector2_subtract(const Vector2* a,const Vector2* b){
+Vector2 vector2_subtract(const Vector2* a,const Vector2* b){
     return vector2(a->x-b->x,a->y-b->y);
 }
-static Vector2 vector2_negate(const Vector2* a){
+Vector2 vector2_negate(const Vector2* a){
     return vector2(-a->x,-a->y);
 }
-static Vector2 vector2_scale(const Vector2* a,float s){
+Vector2 vector2_scale(const Vector2* a,float s){
     return vector2(a->x*s,a->y*s);
 }
-static int vector2_equals(const Vector2* a,const Vector2* b){
+int vector2_equals(const Vector2* a,const Vector2* b){
     return a->x == b->x && a->y == b->y;
 }
-static float vector2_length(const Vector2* a){
+float vector2_length(const Vector2* a){
     return sqrt(a->x * a->x + a->y * a->y);
 }
-static float vector2_lengthSquare(const Vector2* a){
+float vector2_lengthSquare(const Vector2* a){
     return a->x * a->x + a->y * a->y;
 }
-static void vector2_normalize(Vector2* a) {
+void vector2_normalize(Vector2* a) {
     float len = vector2_length(a);
     if(len == 0) {  return;   }
     float num = 1.0 / len;
     a->x *= num; a->y *= num;
 }
 
-static Vector2 vector2_zero(){
+Vector2 vector2_zero(){
     return vector2(0,0);
 }
-static Vector2 vector2_copy(const Vector2* a){
+Vector2 vector2_copy(const Vector2* a){
     return vector2(a->x,a->y); 
 }
-static Vector2 vector2_normalize_copy(const Vector2* a){
+Vector2 vector2_normalize_copy(const Vector2* a){
     Vector2 ret = vector2_copy(a);
     vector2_normalize(&ret);
     return ret;
 }
 
-static Vector2 vector2_min(const Vector2* a, const Vector2* b){
+Vector2 vector2_min(const Vector2* a, const Vector2* b){
     return vector2(a->x<b->x?a->x:b->x,a->y<b->y?a->y:b->y);
 }
-static Vector2 vector2_max(const Vector2* a, const Vector2* b){
+Vector2 vector2_max(const Vector2* a, const Vector2* b){
     return vector2(a->x>b->x?a->x:b->x,a->y>b->y?a->y:b->y);
 }
         
-static Vector2 vector2_transform(const Vector2* a, const Matrix* transformation) {
+Vector2 vector2_transform(const Vector2* a, const Matrix* transformation) {
     return vector2( 
               (a->x * transformation->m[0]) + (a->y * transformation->m[4]),
               (a->x * transformation->m[1]) + (a->y * transformation->m[5])
             );
 }
-static float vector2_distanceSquared(const Vector2* a,const Vector2* b){
+float vector2_distanceSquared(const Vector2* a,const Vector2* b){
     float x=a->x-b->x;
     float y=a->y-b->y;
     return (x*x)+(y*y);
 }
-static float vector2_distance(const Vector2* a,const Vector2* b){
+float vector2_distance(const Vector2* a,const Vector2* b){
     return sqrt(vector2_distanceSquared(a,b));
 }
 
@@ -175,39 +175,39 @@ Vector3 vector3(float x,float y,float z){
     ret.x=x; ret.y=y; ret.z=z;
     return ret;
 }
-static const char* vector3_tostring(const Vector3* a,char* buf,int sz){
+const char* vector3_tostring(const Vector3* a,char* buf,int sz){
     snprintf(buf,sz,"{X: %f Y:%f Z:%f}",a->x,a->y,a->z);
     return buf;
 }
 
-static Vector3 vector3_add(const Vector3* a,const Vector3* b){
+Vector3 vector3_add(const Vector3* a,const Vector3* b){
     return vector3(a->x+b->x,a->y+b->y,a->z+b->z);
 }
-static Vector3 vector3_subtract(const Vector3* a,const Vector3* b){
+Vector3 vector3_subtract(const Vector3* a,const Vector3* b){
     return vector3(a->x-b->x,a->y-b->y,a->z-b->z);
 }
-static Vector3 vector3_negate(const Vector3* a){
+Vector3 vector3_negate(const Vector3* a){
     return vector3(-a->x,-a->y,-a->z);
 }
-static Vector3 vector3_scale(const Vector3* a,float s){
+Vector3 vector3_scale(const Vector3* a,float s){
     return vector3(a->x*s,a->y*s,a->z*s);
 }
-static int vector3_equals(const Vector3* a,const Vector3* b){
+int vector3_equals(const Vector3* a,const Vector3* b){
     return a->x == b->x && a->y == b->y && a->z==b->z;
 }
-static Vector3 vector3_multiply(const Vector3* a,const Vector3* b){
+Vector3 vector3_multiply(const Vector3* a,const Vector3* b){
     return vector3(a->x * b->x, a->y * b->y, a->z * b->z);
 }
-static Vector3 vector3_divide(const Vector3* a,const Vector3* b){
+Vector3 vector3_divide(const Vector3* a,const Vector3* b){
     return vector3(a->x / b->x, a->y / b->y, a->z / b->z);
 }
-static float vector3_lengthSquare(const Vector3* a){
+float vector3_lengthSquare(const Vector3* a){
         return (a->x * a->x + a->y *a->y + a->z * a->z);
 }
-static float vector3_length(const Vector3* a){
+float vector3_length(const Vector3* a){
         return sqrt(a->x * a->x + a->y *a->y + a->z * a->z);
 }
-static void vector3_normalize(Vector3* a){
+void vector3_normalize(Vector3* a){
         float len = vector3_length(a);
         if(len == 0) {  return;   }
         float num = 1.0 / len;
@@ -215,37 +215,37 @@ static void vector3_normalize(Vector3* a){
         a->y *= num;
         a->z *= num;
 }
-static Vector3 vector3_fromArray(float* f,int offset){
+Vector3 vector3_fromArray(float* f,int offset){
     return vector3(f[offset],f[offset+1],f[offset+2]);
 }
 Vector3 vector3_zero(){
     return vector3(0,0,0);
 }
-static Vector3 vector3_up(){
+Vector3 vector3_up(){
     return vector3(0,1.0,0);
 }
 
 
-static Vector3 vector3_copy(const Vector3* a){
+Vector3 vector3_copy(const Vector3* a){
     return vector3(a->x,a->y,a->z);
 }
-static Vector3 vector3_transform_coordinates(const Vector3* vector,const Matrix* transformation){
+Vector3 vector3_transform_coordinates(const Vector3* vector,const Matrix* transformation){
     float x = (vector->x * transformation->m[0]) + (vector->y * transformation->m[4]) + (vector->z * transformation->m[8]) + transformation->m[12];
     float y = (vector->x * transformation->m[1]) + (vector->y * transformation->m[5]) + (vector->z * transformation->m[9]) + transformation->m[13];
     float z = (vector->x * transformation->m[2]) + (vector->y * transformation->m[6]) + (vector->z * transformation->m[10]) + transformation->m[14];
     float w = (vector->x * transformation->m[3]) + (vector->y * transformation->m[7]) + (vector->z * transformation->m[11]) + transformation->m[15];
     return vector3(x / w, y / w, z / w);
 }
-static Vector3 vector3_transform_normal(const Vector3* vector, const Matrix* transformation) {
+Vector3 vector3_transform_normal(const Vector3* vector, const Matrix* transformation) {
     float x = (vector->x * transformation->m[0]) + (vector->y * transformation->m[4]) + (vector->z * transformation->m[8]);
     float y = (vector->x * transformation->m[1]) + (vector->y * transformation->m[5]) + (vector->z * transformation->m[9]);
     float z = (vector->x * transformation->m[2]) + (vector->y * transformation->m[6]) + (vector->z * transformation->m[10]);
     return vector3(x, y, z);
 }
-static float vector3_dot(const Vector3* left,const Vector3* right) {
+float vector3_dot(const Vector3* left,const Vector3* right) {
     return (left->x * right->x + left->y * right->y + left->z * right->z);
 }
-static Vector3 vector3_cross(const Vector3* left,const Vector3* right)  {
+Vector3 vector3_cross(const Vector3* left,const Vector3* right)  {
     float x = left->y * right->z - left->z * right->y;
     float y = left->z * right->x - left->x * right->z;
     float z = left->x * right->y - left->y * right->x;
@@ -257,11 +257,11 @@ Vector3 vector3_normalize_copy(const Vector3* vector) {
     return newvector;
 }
 
-static float vector3_distance(const Vector3* value1,const Vector3*  value2) {
+float vector3_distance(const Vector3* value1,const Vector3*  value2) {
     return sqrt(vector3_distanceSquared(value1, value2));
 }
 
-static float vector3_distanceSquared(const Vector3* value1,const Vector3*  value2) {
+float vector3_distanceSquared(const Vector3* value1,const Vector3*  value2) {
     float x = value1->x - value2->x;
     float y = value1->y - value2->y;
     float z = value1->z - value2->z;
@@ -270,17 +270,17 @@ static float vector3_distanceSquared(const Vector3* value1,const Vector3*  value
 
 
 
-static Matrix matrix(){
+Matrix matrix(){
     Matrix ret;
     memset(&ret,0,sizeof(Matrix));
     return ret;
 }
-static int matrix_isIdentity(const Matrix* a){
+int matrix_isIdentity(const Matrix* a){
     if(a->m[0] != 1.0 || a->m[5] != 1.0 || a->m[10] != 1.0 || a->m[15] != 1.0) return 0;
     if(a->m[12] != 0.0 || a->m[13] != 0.0 || a->m[14] != 0.0 || a->m[4] != 0.0 || a->m[6] != 0.0 || a->m[7] != 0.0 || a->m[8] != 0.0 || a->m[9] != 0.0 || a->m[11] != 0.0 || a->m[12] != 0.0 || a->m[13] != 0.0 || a->m[14] != 0.0)  return 0;
     return 1;
 }
-static float matrix_determinant(const Matrix* a){
+float matrix_determinant(const Matrix* a){
     float temp1 = (a->m[10] * a->m[15]) - (a->m[11] * a->m[14]);
     float temp2 = (a->m[9] * a->m[15]) - (a->m[11] * a->m[13]);
     float temp3 = (a->m[9] * a->m[14]) - (a->m[10] * a->m[13]);
@@ -289,10 +289,10 @@ static float matrix_determinant(const Matrix* a){
     float temp6 = (a->m[8] * a->m[13]) - (a->m[9] * a->m[12]);
     return ((((a->m[0] * (((a->m[5] * temp1) - (a->m[6] * temp2)) + (a->m[7] * temp3))) - (a->m[1] * (((a->m[4] * temp1) - (a->m[6] * temp4)) + (a->m[7] * temp5)))) + (a->m[2] * (((a->m[4] * temp2) - (a->m[5] * temp4)) + (a->m[7] * temp6)))) - (a->m[3] * (((a->m[4] * temp3) - (a->m[5] * temp5)) + (a->m[6] * temp6))));
 }
-static float* matrix_toArray(Matrix* a){
+float* matrix_toArray(Matrix* a){
     return a->m;
 }
-static void matrix_invert(Matrix* a) {
+void matrix_invert(Matrix* a) {
     float l1 = a->m[0];
     float l2 = a->m[1];
     float l3 = a->m[2];
@@ -351,7 +351,7 @@ static void matrix_invert(Matrix* a) {
 }
 
 
-static Matrix matrix_multiply(const Matrix* a,const Matrix* other) {
+Matrix matrix_multiply(const Matrix* a,const Matrix* other) {
     Matrix result;
     result.m[0] = a->m[0] * other->m[0] + a->m[1] * other->m[4] + a->m[2] * other->m[8] + a->m[3] * other->m[12];
     result.m[1] = a->m[0] * other->m[1] + a->m[1] * other->m[5] + a->m[2] * other->m[9] + a->m[3] * other->m[13];
@@ -372,13 +372,13 @@ static Matrix matrix_multiply(const Matrix* a,const Matrix* other) {
     return result;
 }
 
-static int matrix_equals(const Matrix* a,const Matrix* value) {
+int matrix_equals(const Matrix* a,const Matrix* value) {
    return (a->m[0] == value->m[0] && a->m[1] == value->m[1] && a->m[2] == value->m[2] && a->m[3] == value->m[3] && a->m[4] == value->m[4] && a->m[5] == value->m[5] && a->m[6] == value->m[6] && a->m[7] == value->m[7] && a->m[8] == value->m[8] && a->m[9] == value->m[9] && a->m[10] == value->m[10] && a->m[11] == value->m[11] && a->m[12] == value->m[12] && a->m[13] == value->m[13] && a->m[14] == value->m[14] && a->m[15] == value->m[15]);
 }
 
 
 
-static Matrix matrix_fromValues(float initialM11,float  initialM12,float  initialM13,float  initialM14,float  initialM21,float  initialM22, float initialM23,float  initialM24,float  initialM31,float  initialM32,float  initialM33,float  initialM34,float  initialM41,float  initialM42,float  initialM43,float  initialM44) {
+Matrix matrix_fromValues(float initialM11,float  initialM12,float  initialM13,float  initialM14,float  initialM21,float  initialM22, float initialM23,float  initialM24,float  initialM31,float  initialM32,float  initialM33,float  initialM34,float  initialM41,float  initialM42,float  initialM43,float  initialM44) {
    Matrix result;
    result.m[0] = initialM11;
    result.m[1] = initialM12;
@@ -399,17 +399,17 @@ static Matrix matrix_fromValues(float initialM11,float  initialM12,float  initia
    return result;
 }
 
-static Matrix matrix_Identity() {
+Matrix matrix_Identity() {
    return matrix_fromValues(1.0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0, 1.0, 0, 0, 0, 0, 1.0);
 }
-static Matrix matrix_Zero() {
+Matrix matrix_Zero() {
    return matrix_fromValues(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 }
-static Matrix matrix_Copy(const Matrix* source) {
+Matrix matrix_Copy(const Matrix* source) {
    return matrix_fromValues(source->m[0], source->m[1], source->m[2], source->m[3], source->m[4], source->m[5], source->m[6], source->m[7], source->m[8], source->m[9], source->m[10], source->m[11], source->m[12], source->m[13], source->m[14], source->m[15]);
 }
 
-static Matrix matrix_RotationX(float angle) {
+Matrix matrix_RotationX(float angle) {
    Matrix result = matrix_Zero();
    float s = sin(angle);
    float c = cos(angle);
@@ -421,7 +421,7 @@ static Matrix matrix_RotationX(float angle) {
    result.m[6] = s;
    return result;
 }
-static Matrix matrix_RotationY(float angle) {
+Matrix matrix_RotationY(float angle) {
     Matrix result = matrix_Zero();
     float s = sin(angle);
     float c = cos(angle);
@@ -433,7 +433,7 @@ static Matrix matrix_RotationY(float angle) {
     result.m[10] = c;
     return result;
 }
-static Matrix matrix_RotationZ(float angle) {
+Matrix matrix_RotationZ(float angle) {
     Matrix result = matrix_Zero();
     float s = sin(angle);
     float c = cos(angle);
@@ -447,7 +447,7 @@ static Matrix matrix_RotationZ(float angle) {
 }
 
 
-static Matrix matrix_RotationAxis(Vector3* axis, float angle) {
+Matrix matrix_RotationAxis(Vector3* axis, float angle) {
     float s = sin(-angle);
     float c = cos(-angle);
     float c1 = 1 - c;
@@ -468,7 +468,7 @@ static Matrix matrix_RotationAxis(Vector3* axis, float angle) {
     result.m[15] = 1.0;
     return result;
 };
-static Matrix matrix_RotationYawPitchRoll(float yaw,float pitch,float roll) {
+Matrix matrix_RotationYawPitchRoll(float yaw,float pitch,float roll) {
     Matrix rotationZ=matrix_RotationZ(roll);
     Matrix rotationX=matrix_RotationX(pitch);
     Matrix rotationY=matrix_RotationY(yaw);
@@ -476,7 +476,7 @@ static Matrix matrix_RotationYawPitchRoll(float yaw,float pitch,float roll) {
     Matrix res1=matrix_multiply(&rotationZ,&rotationX);
     return matrix_multiply(&res1,&rotationY);;
 };
-static Matrix matrix_scaling(float x, float y, float z) {
+Matrix matrix_scaling(float x, float y, float z) {
     Matrix result = matrix_Zero();
     result.m[0] = x;
     result.m[5] = y;
@@ -484,7 +484,7 @@ static Matrix matrix_scaling(float x, float y, float z) {
     result.m[15] = 1.0;
     return result;
 }
-static Matrix matrix_Translation(float x,float y,float z) {
+Matrix matrix_Translation(float x,float y,float z) {
     Matrix result = matrix_Identity();
     result.m[12] = x;
     result.m[13] = y;
@@ -492,7 +492,7 @@ static Matrix matrix_Translation(float x,float y,float z) {
     return result;
 }
 
-static Matrix matrix_LookAtLH(const Vector3* eye,const Vector3* target,const Vector3* up) {
+Matrix matrix_LookAtLH(const Vector3* eye,const Vector3* target,const Vector3* up) {
     Vector3 zaxis = vector3_subtract(target,eye);
     vector3_normalize(&zaxis);
     Vector3 xaxis = vector3_cross(up, &zaxis);
@@ -506,7 +506,7 @@ static Matrix matrix_LookAtLH(const Vector3* eye,const Vector3* target,const Vec
 }
 
 
-static Matrix matrix_PerspectiveLH(float width,float height,float znear,float zfar) {
+Matrix matrix_PerspectiveLH(float width,float height,float znear,float zfar) {
     Matrix matrix = matrix_Zero();
     matrix.m[0] = (2.0 * znear) / width;
     matrix.m[1] = matrix.m[2] = matrix.m[3] = 0.0;
@@ -520,7 +520,7 @@ static Matrix matrix_PerspectiveLH(float width,float height,float znear,float zf
     return matrix;
 }
 
-static Matrix matrix_PerspectiveFovLH(float fov,float aspect,float znear,float zfar) {
+Matrix matrix_PerspectiveFovLH(float fov,float aspect,float znear,float zfar) {
     Matrix matrix = matrix_Zero();
     float tanv = 1.0 / (tan(fov * 0.5));
     matrix.m[0] = tanv / aspect;
@@ -534,7 +534,7 @@ static Matrix matrix_PerspectiveFovLH(float fov,float aspect,float znear,float z
     matrix.m[14] = (znear * zfar) / (znear - zfar);
     return matrix;
 }
-static Matrix matrix_Transpose(const Matrix* matrix) {
+Matrix matrix_Transpose(const Matrix* matrix) {
     Matrix result;
     result.m[0] = matrix->m[0];
     result.m[1] = matrix->m[4];
@@ -595,7 +595,7 @@ typedef struct Device{
 }Device;
 
 
-static int texture_map(const Texture* tex, float tu,float tv){
+int texture_map(const Texture* tex, float tu,float tv){
    if(tex->internalBuffer == NULL || tex->width <= 0 || tex->height <= 0){
       return 0;
    }
@@ -619,7 +619,7 @@ static int texture_map(const Texture* tex, float tu,float tv){
    return tex->internalBuffer[pos];
 }
 
-static Texture* texture_load(const char* filename){
+Texture* texture_load(const char* filename){
     Texture* ret = (Texture*)malloc(sizeof(Texture));
     ret->internalBuffer = NULL;
     ret->width = 0;
@@ -627,13 +627,13 @@ static Texture* texture_load(const char* filename){
     loadimage(filename,&ret->internalBuffer,&ret->width,&ret->height);
     return ret;
 }
-static void texture_unload(Texture* tex){
+void texture_unload(Texture* tex){
     if(tex->internalBuffer) free(tex->internalBuffer);
     free(tex);
 }
 
 
-static Camera softengine_camera(){
+Camera softengine_camera(){
     Camera ret;
     return ret;
 }
@@ -708,10 +708,10 @@ void device_clear(Device* dev){
     }
 #endif
 }
-static void device_present(Device* dev){
+void device_present(Device* dev){
     drawpixels(dev->backbuffer,0,0,dev->workingWidth,dev->workingHeight);
 }
-static void device_putPixel(Device* dev,int x,int y,int z,int color){
+void device_putPixel(Device* dev,int x,int y,int z,int color){
     // Bounds check to prevent out-of-bounds array access
     // Combined check for better branch prediction
     if(x < 0 || y < 0 || x >= dev->workingWidth || y >= dev->workingHeight) {
@@ -725,7 +725,7 @@ static void device_putPixel(Device* dev,int x,int y,int z,int color){
     dev->backbuffer[idx]=color;
 }
 
-static void device_drawPoint(Device* dev,const Vector3* point,int color){
+void device_drawPoint(Device* dev,const Vector3* point,int color){
     device_putPixel(dev,point->x,point->y,point->z,color);
 }
 static __inline float maxf(float a,float b){ return a>b?a:b;}
@@ -740,7 +740,7 @@ static __inline float device_interpolate(float minv, float maxv, float gradient)
     return minv + (maxv - minv) * device_clamp0(gradient);
 }
 
-static Vertex device_project(const Device* dev,const Vertex* vertex,const Matrix* transMat,const Matrix* world){
+Vertex device_project(const Device* dev,const Vertex* vertex,const Matrix* transMat,const Matrix* world){
     Vertex ret;
     Vector3 point2d = vector3_transform_coordinates(&vertex->Coordinates,transMat);
     float x = point2d.x * dev->workingWidth+dev->workingWidth/2;
@@ -754,16 +754,16 @@ static Vertex device_project(const Device* dev,const Vertex* vertex,const Matrix
     ret.TextureCoordinates = vertex->TextureCoordinates;
     return ret;
 }
-static float device_computeNDotL(const Vector3* vertex,Vector3* normal,Vector3* lightPosition) {
+float device_computeNDotL(const Vector3* vertex,Vector3* normal,Vector3* lightPosition) {
     Vector3 lightDirection = vector3_subtract(lightPosition,vertex);
     vector3_normalize(normal);
     vector3_normalize(&lightDirection);
     return maxf(0, vector3_dot(normal, &lightDirection));
 }
-static int device_color4(int r,int g,int b,int a){
+int device_color4(int r,int g,int b,int a){
     return 0x010000*r+(0x000100)*g+0x000001*b+0x01000000*a;
 }
-static int device_color4ref(int refColr,float r,float g,float b,float a){
+int device_color4ref(int refColr,float r,float g,float b,float a){
     return device_color4((int)(((refColr>>16)&0xff)*r),(int)(((refColr>>8)&0xff)*g),(int)((refColr&0xff)*b),(int)(((refColr>>24)&0xff)*a));
 }
 typedef struct DrawData{
@@ -772,7 +772,7 @@ typedef struct DrawData{
     float ua,ub,uc,ud,va,vb,vc,vd;
 }DrawData;
 
-static void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,const Vertex* vb,const Vertex* vc,const Vertex* vd,float color,const Texture* texture) {
+void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,const Vertex* vb,const Vertex* vc,const Vertex* vd,float color,const Texture* texture) {
     int x;
     float gradient1 = va->Coordinates.y != vb->Coordinates.y ? (data->currentY - va->Coordinates.y) / (vb->Coordinates.y - va->Coordinates.y) : 1;
     float gradient2 = vc->Coordinates.y != vd->Coordinates.y ? (data->currentY - vc->Coordinates.y) / (vd->Coordinates.y - vc->Coordinates.y) : 1;
@@ -816,7 +816,7 @@ static void device_processScanLine(Device* dev,const DrawData* data,const Vertex
     }
 }
 
-static void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float color,const Texture* texture) {
+void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float color,const Texture* texture) {
             if (v1->Coordinates.y > v2->Coordinates.y) {
                 Vertex* temp = v2;
                 v2 = v1;
