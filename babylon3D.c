@@ -770,6 +770,8 @@ typedef struct DrawData{
     float currentY;
     float ndotla,ndotlb,ndotlc,ndotld;
     float ua,ub,uc,ud,va,vb,vc,vd;
+    // Depth values (1/z) for perspective-correct texture mapping
+    float za,zb,zc,zd;
 }DrawData;
 
 void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,const Vertex* vb,const Vertex* vc,const Vertex* vd,float color,const Texture* texture) {
@@ -786,6 +788,9 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
     float snl = device_interpolate(data->ndotla, data->ndotlb, gradient1);
     float enl = device_interpolate(data->ndotlc, data->ndotld, gradient2);
 
+    // Perspective-correct texture mapping: interpolate u/z, v/z, and 1/z
+    float sz1 = device_interpolate(data->za, data->zb, gradient1);
+    float sz2 = device_interpolate(data->zc, data->zd, gradient2);
     float su = device_interpolate(data->ua, data->ub, gradient1);
     float eu = device_interpolate(data->uc, data->ud, gradient2);
     float sv = device_interpolate(data->va, data->vb, gradient1);
@@ -801,8 +806,17 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
 
         float z = device_interpolate(z1, z2, gradient);
         float ndotl = device_interpolate(snl, enl, gradient) * color;
+        
+        // Perspective-correct texture coordinate interpolation
+        float sz = device_interpolate(sz1, sz2, gradient);
         float u = device_interpolate(su, eu, gradient);
         float v = device_interpolate(sv, ev, gradient);
+        
+        // Divide by interpolated 1/z to get correct perspective texture coordinates
+        if (sz > 0.0001f) {  // Avoid division by zero
+            u /= sz;
+            v /= sz;
+        }
 
         int textureColor;
 
@@ -864,15 +878,26 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                         data.ndotlc = nl1;
                         data.ndotld = nl2;
 
-                        data.ua = v1->TextureCoordinates.x;
-                        data.ub = v3->TextureCoordinates.x;
-                        data.uc = v1->TextureCoordinates.x;
-                        data.ud = v2->TextureCoordinates.x;
+                        // Calculate 1/z for perspective-correct texture mapping
+                        float z1_inv = (v1->Coordinates.z != 0.0f) ? 1.0f / v1->Coordinates.z : 0.0f;
+                        float z2_inv = (v2->Coordinates.z != 0.0f) ? 1.0f / v2->Coordinates.z : 0.0f;
+                        float z3_inv = (v3->Coordinates.z != 0.0f) ? 1.0f / v3->Coordinates.z : 0.0f;
 
-                        data.va = v1->TextureCoordinates.y;
-                        data.vb = v3->TextureCoordinates.y;
-                        data.vc = v1->TextureCoordinates.y;
-                        data.vd = v2->TextureCoordinates.y;
+                        // Store u/z, v/z, and 1/z
+                        data.ua = v1->TextureCoordinates.x * z1_inv;
+                        data.ub = v3->TextureCoordinates.x * z3_inv;
+                        data.uc = v1->TextureCoordinates.x * z1_inv;
+                        data.ud = v2->TextureCoordinates.x * z2_inv;
+
+                        data.va = v1->TextureCoordinates.y * z1_inv;
+                        data.vb = v3->TextureCoordinates.y * z3_inv;
+                        data.vc = v1->TextureCoordinates.y * z1_inv;
+                        data.vd = v2->TextureCoordinates.y * z2_inv;
+
+                        data.za = z1_inv;
+                        data.zb = z3_inv;
+                        data.zc = z1_inv;
+                        data.zd = z2_inv;
 
                         device_processScanLine(dev,&data, v1, v3, v1, v2, color, texture);
                     } else {
@@ -881,15 +906,26 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                         data.ndotlc = nl2;
                         data.ndotld = nl3;
 
-                        data.ua = v1->TextureCoordinates.x;
-                        data.ub = v3->TextureCoordinates.x;
-                        data.uc = v2->TextureCoordinates.x;
-                        data.ud = v3->TextureCoordinates.x;
+                        // Calculate 1/z for perspective-correct texture mapping
+                        float z1_inv = (v1->Coordinates.z != 0.0f) ? 1.0f / v1->Coordinates.z : 0.0f;
+                        float z2_inv = (v2->Coordinates.z != 0.0f) ? 1.0f / v2->Coordinates.z : 0.0f;
+                        float z3_inv = (v3->Coordinates.z != 0.0f) ? 1.0f / v3->Coordinates.z : 0.0f;
 
-                        data.va = v1->TextureCoordinates.y;
-                        data.vb = v3->TextureCoordinates.y;
-                        data.vc = v2->TextureCoordinates.y;
-                        data.vd = v3->TextureCoordinates.y;
+                        // Store u/z, v/z, and 1/z
+                        data.ua = v1->TextureCoordinates.x * z1_inv;
+                        data.ub = v3->TextureCoordinates.x * z3_inv;
+                        data.uc = v2->TextureCoordinates.x * z2_inv;
+                        data.ud = v3->TextureCoordinates.x * z3_inv;
+
+                        data.va = v1->TextureCoordinates.y * z1_inv;
+                        data.vb = v3->TextureCoordinates.y * z3_inv;
+                        data.vc = v2->TextureCoordinates.y * z2_inv;
+                        data.vd = v3->TextureCoordinates.y * z3_inv;
+
+                        data.za = z1_inv;
+                        data.zb = z3_inv;
+                        data.zc = z2_inv;
+                        data.zd = z3_inv;
 
                         device_processScanLine(dev,&data, v1, v3, v2, v3, color, texture);
                     }
@@ -905,15 +941,26 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                         data.ndotlc = nl1;
                         data.ndotld = nl3;
 
-                        data.ua = v1->TextureCoordinates.x;
-                        data.ub = v2->TextureCoordinates.x;
-                        data.uc = v1->TextureCoordinates.x;
-                        data.ud = v3->TextureCoordinates.x;
+                        // Calculate 1/z for perspective-correct texture mapping
+                        float z1_inv = (v1->Coordinates.z != 0.0f) ? 1.0f / v1->Coordinates.z : 0.0f;
+                        float z2_inv = (v2->Coordinates.z != 0.0f) ? 1.0f / v2->Coordinates.z : 0.0f;
+                        float z3_inv = (v3->Coordinates.z != 0.0f) ? 1.0f / v3->Coordinates.z : 0.0f;
 
-                        data.va = v1->TextureCoordinates.y;
-                        data.vb = v2->TextureCoordinates.y;
-                        data.vc = v1->TextureCoordinates.y;
-                        data.vd = v3->TextureCoordinates.y;
+                        // Store u/z, v/z, and 1/z
+                        data.ua = v1->TextureCoordinates.x * z1_inv;
+                        data.ub = v2->TextureCoordinates.x * z2_inv;
+                        data.uc = v1->TextureCoordinates.x * z1_inv;
+                        data.ud = v3->TextureCoordinates.x * z3_inv;
+
+                        data.va = v1->TextureCoordinates.y * z1_inv;
+                        data.vb = v2->TextureCoordinates.y * z2_inv;
+                        data.vc = v1->TextureCoordinates.y * z1_inv;
+                        data.vd = v3->TextureCoordinates.y * z3_inv;
+
+                        data.za = z1_inv;
+                        data.zb = z2_inv;
+                        data.zc = z1_inv;
+                        data.zd = z3_inv;
 
                         device_processScanLine(dev,&data, v1, v2, v1, v3, color, texture);
                     } else {
@@ -922,15 +969,26 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                         data.ndotlc = nl1;
                         data.ndotld = nl3;
 
-                        data.ua = v2->TextureCoordinates.x;
-                        data.ub = v3->TextureCoordinates.x;
-                        data.uc = v1->TextureCoordinates.x;
-                        data.ud = v3->TextureCoordinates.x;
+                        // Calculate 1/z for perspective-correct texture mapping
+                        float z1_inv = (v1->Coordinates.z != 0.0f) ? 1.0f / v1->Coordinates.z : 0.0f;
+                        float z2_inv = (v2->Coordinates.z != 0.0f) ? 1.0f / v2->Coordinates.z : 0.0f;
+                        float z3_inv = (v3->Coordinates.z != 0.0f) ? 1.0f / v3->Coordinates.z : 0.0f;
 
-                        data.va = v2->TextureCoordinates.y;
-                        data.vb = v3->TextureCoordinates.y;
-                        data.vc = v1->TextureCoordinates.y;
-                        data.vd = v3->TextureCoordinates.y;
+                        // Store u/z, v/z, and 1/z
+                        data.ua = v2->TextureCoordinates.x * z2_inv;
+                        data.ub = v3->TextureCoordinates.x * z3_inv;
+                        data.uc = v1->TextureCoordinates.x * z1_inv;
+                        data.ud = v3->TextureCoordinates.x * z3_inv;
+
+                        data.va = v2->TextureCoordinates.y * z2_inv;
+                        data.vb = v3->TextureCoordinates.y * z3_inv;
+                        data.vc = v1->TextureCoordinates.y * z1_inv;
+                        data.vd = v3->TextureCoordinates.y * z3_inv;
+
+                        data.za = z2_inv;
+                        data.zb = z3_inv;
+                        data.zc = z1_inv;
+                        data.zd = z3_inv;
 
                         device_processScanLine(dev,&data, v2, v3, v1, v3, color, texture);
                     }
