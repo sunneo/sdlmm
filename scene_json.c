@@ -17,8 +17,8 @@ static char* read_file(const char* filename) {
     
     char* content = (char*)malloc(length + 1);
     if (content) {
-        fread(content, 1, length, file);
-        content[length] = '\0';
+        size_t read = fread(content, 1, length, file);
+        content[read] = '\0';
     }
     
     fclose(file);
