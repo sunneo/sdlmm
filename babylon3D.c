@@ -2,7 +2,8 @@
 #include <math.h>
 #include <string.h>
 #include <stdlib.h>
-
+#include "babylon3D.h"
+#include "sdlmm.h"
 // SIMD intrinsics for hardware acceleration
 #if defined(__x86_64__) || defined(_M_X64) || defined(__i386) || defined(_M_IX86)
     #define USE_SIMD_X86
@@ -18,7 +19,7 @@
 // Epsilon for perspective-correct texture mapping depth threshold
 #define PERSPECTIVE_EPSILON 0.0001f
 
-typedef struct Vector2{
+/*typedef struct Vector2{
    float x,y;
 }Vector2;
 
@@ -29,7 +30,7 @@ typedef struct Vector3{
 typedef struct Matrix{
    float m[16];
 }Matrix;
-
+*/
 
 Vector2 vector2(float x,float y);
 char* vector2_tostring(const Vector2* vec,char* buf,int size);
@@ -560,6 +561,7 @@ Matrix matrix_Transpose(const Matrix* matrix) {
 }
 
 //==============================================================================
+/*
 typedef struct Camera{
     Vector3 Position;
     Vector3 Target;
@@ -597,7 +599,7 @@ typedef struct Device{
     int* backbuffer;
     int* depthbuffer;
 }Device;
-
+*/
 
 int texture_map(const Texture* tex, float tu,float tv){
    if(tex->internalBuffer == NULL || tex->width <= 0 || tex->height <= 0){
