@@ -4,10 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Constants for placeholder cube mesh
-#define CUBE_VERTICES 8
-#define CUBE_FACES 12
-
 // Helper function to read file contents
 static char* read_file(const char* filename) {
     FILE* file = fopen(filename, "r");
@@ -426,6 +422,7 @@ void scene3d_free(Scene3D* scene) {
     
     for (int i = 0; i < scene->modelCount; i++) {
         if (scene->models[i].modelFile) free(scene->models[i].modelFile);
+        if (scene->models[i].textureFile) free(scene->models[i].textureFile);
         if (scene->models[i].mesh) mesh_free(scene->models[i].mesh);
     }
     
@@ -444,6 +441,9 @@ void scene3d_add_model(Scene3D* scene, const Model3D* model) {
     if (model->modelFile) {
         scene->models[scene->modelCount].modelFile = strdup(model->modelFile);
     }
+    if (model->textureFile) {
+        scene->models[scene->modelCount].textureFile = strdup(model->textureFile);
+    }
     
     scene->modelCount++;
 }
@@ -456,6 +456,99 @@ void scene3d_add_light(Scene3D* scene, const Light3D* light) {
     
     scene->lights[scene->lightCount] = *light;
     scene->lightCount++;
+}
+
+// Helper function to create mesh from inline JSON vertices and faces data
+static Mesh* mesh_load_from_json(cJSON* meshData, const char* name) {
+    if (!meshData) return NULL;
+    
+    cJSON* vertices = cJSON_GetObjectItem(meshData, "vertices");
+    cJSON* faces = cJSON_GetObjectItem(meshData, "faces");
+    
+    if (!vertices || !cJSON_IsArray(vertices) || 
+        !faces || !cJSON_IsArray(faces)) {
+        printf("Warning: Invalid inline mesh data format\n");
+        return NULL;
+    }
+    
+    int vertexCount = cJSON_GetArraySize(vertices);
+    int faceCount = cJSON_GetArraySize(faces);
+    
+    if (vertexCount == 0 || faceCount == 0) {
+        printf("Warning: Empty mesh data\n");
+        return NULL;
+    }
+    
+    // Create mesh
+    Mesh* mesh = softengine_mesh(name ? name : "inline", vertexCount, faceCount);
+    if (!mesh) return NULL;
+    
+    // Load vertices
+    cJSON* vertexItem = NULL;
+    int vIdx = 0;
+    cJSON_ArrayForEach(vertexItem, vertices) {
+        if (vIdx >= vertexCount) break;
+        
+        // Vertex can have: coordinates [x,y,z], normal [x,y,z], texCoord [u,v]
+        cJSON* coords = cJSON_GetObjectItem(vertexItem, "coordinates");
+        if (coords && cJSON_IsArray(coords) && cJSON_GetArraySize(coords) >= 3) {
+            mesh->Vertices[vIdx].Coordinates.x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(coords, 0));
+            mesh->Vertices[vIdx].Coordinates.y = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(coords, 1));
+            mesh->Vertices[vIdx].Coordinates.z = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(coords, 2));
+        }
+        
+        cJSON* normal = cJSON_GetObjectItem(vertexItem, "normal");
+        if (normal && cJSON_IsArray(normal) && cJSON_GetArraySize(normal) >= 3) {
+            mesh->Vertices[vIdx].Normal.x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(normal, 0));
+            mesh->Vertices[vIdx].Normal.y = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(normal, 1));
+            mesh->Vertices[vIdx].Normal.z = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(normal, 2));
+        } else {
+            mesh->Vertices[vIdx].Normal = vector3(0.0f, 1.0f, 0.0f);
+        }
+        
+        cJSON* texCoord = cJSON_GetObjectItem(vertexItem, "texCoord");
+        if (texCoord && cJSON_IsArray(texCoord) && cJSON_GetArraySize(texCoord) >= 2) {
+            mesh->Vertices[vIdx].TextureCoordinates.x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(texCoord, 0));
+            mesh->Vertices[vIdx].TextureCoordinates.y = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(texCoord, 1));
+            mesh->Vertices[vIdx].TextureCoordinates.z = 0.0f;
+        } else {
+            mesh->Vertices[vIdx].TextureCoordinates = vector3_zero();
+        }
+        
+        vIdx++;
+    }
+    
+    // Load faces
+    cJSON* faceItem = NULL;
+    int fIdx = 0;
+    cJSON_ArrayForEach(faceItem, faces) {
+        if (fIdx >= faceCount) break;
+        
+        // Face is an array [A, B, C] of vertex indices
+        if (cJSON_IsArray(faceItem) && cJSON_GetArraySize(faceItem) >= 3) {
+            int a = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 0));
+            int b = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 1));
+            int c = (int)cJSON_GetNumberValue(cJSON_GetArrayItem(faceItem, 2));
+            
+            // Validate vertex indices
+            if (a < 0 || a >= vertexCount || 
+                b < 0 || b >= vertexCount || 
+                c < 0 || c >= vertexCount) {
+                printf("Warning: Invalid vertex indices in face %d [%d, %d, %d], skipping\n", 
+                       fIdx, a, b, c);
+                continue;
+            }
+            
+            mesh->faces[fIdx].A = a;
+            mesh->faces[fIdx].B = b;
+            mesh->faces[fIdx].C = c;
+        }
+        
+        fIdx++;
+    }
+    
+    printf("Loaded inline mesh: %d vertices, %d faces\n", vertexCount, faceCount);
+    return mesh;
 }
 
 Scene3D* scene3d_load_from_json(const char* filename) {
@@ -538,6 +631,9 @@ Scene3D* scene3d_load_from_json(const char* filename) {
             cJSON* modelFile = cJSON_GetObjectItem(modelItem, "modelFile");
             model.modelFile = modelFile ? strdup(cJSON_GetStringValue(modelFile)) : NULL;
             
+            cJSON* textureFile = cJSON_GetObjectItem(modelItem, "textureFile");
+            model.textureFile = textureFile ? strdup(cJSON_GetStringValue(textureFile)) : NULL;
+            
             cJSON* position = cJSON_GetObjectItem(modelItem, "position");
             if (position && cJSON_IsArray(position) && cJSON_GetArraySize(position) >= 3) {
                 model.position.x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(position, 0));
@@ -561,17 +657,70 @@ Scene3D* scene3d_load_from_json(const char* filename) {
                 model.scale = vector3(1.0f, 1.0f, 1.0f);
             }
             
-            // For now, create a simple cube mesh as placeholder
-            // In a real implementation, you would load the model from file
-            model.mesh = softengine_mesh("placeholder", CUBE_VERTICES, CUBE_FACES);
-            if (model.mesh) {
-                model.mesh->Position = model.position;
-                model.mesh->Rotation = model.rotation;
+            // Check for inline mesh data
+            cJSON* meshData = cJSON_GetObjectItem(modelItem, "mesh");
+            
+            // Load mesh from model file if specified, otherwise try inline mesh data
+            if (model.modelFile) {
+                model.mesh = mesh_load_obj(model.modelFile);
+                if (model.mesh) {
+                    model.mesh->Position = model.position;
+                    model.mesh->Rotation = model.rotation;
+                    
+                    // Load texture if specified
+                    if (model.textureFile) {
+                        Texture* tex = texture_load(model.textureFile);
+                        if (tex) {
+                            model.mesh->texture = *tex;
+                            free(tex);  // We copied the texture data, free the wrapper
+                            printf("Loaded texture '%s' for model '%s'\n", 
+                                   model.textureFile, model.modelFile);
+                        } else {
+                            printf("Warning: Failed to load texture '%s' for model '%s'\n", 
+                                   model.textureFile, model.modelFile);
+                        }
+                    }
+                } else {
+                    printf("Warning: Failed to load model '%s', skipping\n", model.modelFile);
+                    if (model.modelFile) free(model.modelFile);
+                    if (model.textureFile) free(model.textureFile);
+                    continue;
+                }
+            } else if (meshData) {
+                // Load mesh from inline JSON data
+                model.mesh = mesh_load_from_json(meshData, "inline_mesh");
+                if (model.mesh) {
+                    model.mesh->Position = model.position;
+                    model.mesh->Rotation = model.rotation;
+                    
+                    // Load texture if specified
+                    if (model.textureFile) {
+                        Texture* tex = texture_load(model.textureFile);
+                        if (tex) {
+                            model.mesh->texture = *tex;
+                            free(tex);  // We copied the texture data, free the wrapper
+                            printf("Loaded texture '%s' for inline mesh\n", model.textureFile);
+                        } else {
+                            printf("Warning: Failed to load texture '%s' for inline mesh\n", 
+                                   model.textureFile);
+                        }
+                    }
+                } else {
+                    printf("Warning: Failed to load inline mesh data, skipping\n");
+                    if (model.textureFile) free(model.textureFile);
+                    continue;
+                }
+            } else {
+                // No model file or inline mesh specified, skip this model
+                printf("Warning: No modelFile or inline mesh data specified for model, skipping\n");
+                if (model.textureFile) free(model.textureFile);
+                continue;
             }
             
             scene3d_add_model(scene, &model);
             
             if (model.modelFile) free(model.modelFile);
+            if (model.textureFile) free(model.textureFile);
         }
     }
     
@@ -632,6 +781,10 @@ int scene3d_save_to_json(const Scene3D* scene, const char* filename) {
             cJSON_AddStringToObject(modelObj, "modelFile", model->modelFile);
         }
         
+        if (model->textureFile) {
+            cJSON_AddStringToObject(modelObj, "textureFile", model->textureFile);
+        }
+        
         cJSON* position = cJSON_CreateArray();
         cJSON_AddItemToArray(position, cJSON_CreateNumber(model->position.x));
         cJSON_AddItemToArray(position, cJSON_CreateNumber(model->position.y));
@@ -680,8 +833,14 @@ void scene3d_render(const Scene3D* scene, Device* device) {
         }
     }
     
+    // Use the first light from the scene, or NULL for default lighting
+    const Vector3* lightPos = NULL;
+    if (scene->lightCount > 0) {
+        lightPos = &scene->lights[0].position;
+    }
+    
     // Render all meshes - cast is safe as meshArray is already Mesh*
-    device_render(device, &scene->camera, (const Mesh*)meshArray, scene->modelCount);
+    device_render(device, &scene->camera, (const Mesh*)meshArray, scene->modelCount, lightPos);
     
     free(meshArray);
 }

@@ -816,7 +816,7 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
     }
 }
 
-void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float color,const Texture* texture) {
+void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float color,const Texture* texture,const Vector3* lightPos) {
             if (v1->Coordinates.y > v2->Coordinates.y) {
                 Vertex* temp = v2;
                 v2 = v1;
@@ -835,11 +835,9 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                 v1 = temp;
             }
 
-            Vector3 lightPos = vector3(0, 10, 10);
-
-            float nl1 = device_computeNDotL(&v1->WorldCoordinates, &v1->Normal, &lightPos);
-            float nl2 = device_computeNDotL(&v2->WorldCoordinates, &v2->Normal, &lightPos);
-            float nl3 = device_computeNDotL(&v3->WorldCoordinates, &v3->Normal, &lightPos);
+            float nl1 = device_computeNDotL(&v1->WorldCoordinates, &v1->Normal, (Vector3*)lightPos);
+            float nl2 = device_computeNDotL(&v2->WorldCoordinates, &v2->Normal, (Vector3*)lightPos);
+            float nl3 = device_computeNDotL(&v3->WorldCoordinates, &v3->Normal, (Vector3*)lightPos);
 
             DrawData data;
 
@@ -938,11 +936,16 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
 
 #if 1
 
-void device_render(Device* dev, const Camera* camera, const Mesh* meshes,int meshesLength){
+void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength, const Vector3* lightPosition){
     int index;
     Vector3 up = vector3_up();
     Matrix viewMatrix=matrix_LookAtLH(&camera->Position,&camera->Target,&up);
-    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1.0);            
+    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1.0);
+    
+    // Use default light if none provided
+    Vector3 defaultLight = vector3(0, 10, 10);
+    const Vector3* lightPos = lightPosition ? lightPosition : &defaultLight;
+    
     for(index = 0; index < meshesLength; index++) {
         int indexVertices;
         const Mesh* cMesh = &meshes[index];
@@ -960,7 +963,7 @@ void device_render(Device* dev, const Camera* camera, const Mesh* meshes,int mes
             Vertex pixelB = device_project(dev,vertexB,&transformMatrix, &worldMatrix);
             Vertex pixelC = device_project(dev,vertexC,&transformMatrix, &worldMatrix);
             float color=1.0f;
-            device_drawTriangle(dev,&pixelA, &pixelB, &pixelC, color, &cMesh->texture);
+            device_drawTriangle(dev,&pixelA, &pixelB, &pixelC, color, &cMesh->texture, lightPos);
         }
     }
     device_present(dev);
@@ -995,6 +998,171 @@ void device_free(Device* dev) {
         dev->depthbuffer = NULL;
     }
     free(dev);
+}
+
+// OBJ file loader
+Mesh* mesh_load_obj(const char* filename) {
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        printf("Error: Cannot open OBJ file '%s'\n", filename);
+        return NULL;
+    }
+    
+    // First pass: count vertices, normals, texture coordinates, and faces
+    int vertexCount = 0;
+    int normalCount = 0;
+    int texCoordCount = 0;
+    int faceCount = 0;
+    
+    char line[1024];  // Increased buffer size for longer lines
+    while (fgets(line, sizeof(line), file)) {
+        if (line[0] == 'v' && line[1] == ' ') vertexCount++;
+        else if (line[0] == 'v' && line[1] == 'n') normalCount++;
+        else if (line[0] == 'v' && line[1] == 't') texCoordCount++;
+        else if (line[0] == 'f' && line[1] == ' ') faceCount++;
+    }
+    
+    if (vertexCount == 0 || faceCount == 0) {
+        fclose(file);
+        printf("Error: Invalid OBJ file '%s' (no vertices or faces)\n", filename);
+        return NULL;
+    }
+    
+    // Allocate temporary arrays for OBJ data
+    Vector3* vertices = (Vector3*)malloc(sizeof(Vector3) * vertexCount);
+    Vector3* normals = normalCount > 0 ? (Vector3*)malloc(sizeof(Vector3) * normalCount) : NULL;
+    Vector3* texCoords = texCoordCount > 0 ? (Vector3*)malloc(sizeof(Vector3) * texCoordCount) : NULL;
+    
+    if (!vertices || (normalCount > 0 && !normals) || (texCoordCount > 0 && !texCoords)) {
+        printf("Error: Failed to allocate memory for OBJ data\n");
+        if (vertices) free(vertices);
+        if (normals) free(normals);
+        if (texCoords) free(texCoords);
+        fclose(file);
+        return NULL;
+    }
+    
+    // Second pass: read vertex data
+    rewind(file);
+    int vIdx = 0, vnIdx = 0, vtIdx = 0;
+    
+    while (fgets(line, sizeof(line), file)) {
+        if (line[0] == 'v' && line[1] == ' ') {
+            float x, y, z;
+            sscanf(line + 2, "%f %f %f", &x, &y, &z);
+            vertices[vIdx++] = vector3(x, y, z);
+        }
+        else if (line[0] == 'v' && line[1] == 'n') {
+            float x, y, z;
+            sscanf(line + 3, "%f %f %f", &x, &y, &z);
+            normals[vnIdx++] = vector3(x, y, z);
+        }
+        else if (line[0] == 'v' && line[1] == 't') {
+            float u, v;
+            sscanf(line + 3, "%f %f", &u, &v);
+            if (texCoords) texCoords[vtIdx++] = vector3(u, v, 0);
+        }
+    }
+    
+    // Create mesh - we need unique vertices for each face vertex
+    Mesh* mesh = softengine_mesh(filename, faceCount * 3, faceCount);
+    if (!mesh) {
+        printf("Error: Failed to create mesh\n");
+        free(vertices);
+        if (normals) free(normals);
+        if (texCoords) free(texCoords);
+        fclose(file);
+        return NULL;
+    }
+    
+    // Third pass: read faces
+    rewind(file);
+    int fIdx = 0;
+    int uniqueVertIdx = 0;
+    
+    while (fgets(line, sizeof(line), file)) {
+        if (line[0] == 'f' && line[1] == ' ') {
+            int v1, v2, v3;
+            int vt1 = 0, vt2 = 0, vt3 = 0;
+            int vn1 = 0, vn2 = 0, vn3 = 0;
+            
+            // Parse face line - support formats: f v1 v2 v3, f v1/vt1 v2/vt2 v3/vt3, f v1//vn1 v2//vn2 v3//vn3, f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3
+            char* ptr = line + 2;
+            int parsed = sscanf(ptr, "%d/%d/%d %d/%d/%d %d/%d/%d", 
+                               &v1, &vt1, &vn1, &v2, &vt2, &vn2, &v3, &vt3, &vn3);
+            
+            if (parsed != 9) {
+                parsed = sscanf(ptr, "%d//%d %d//%d %d//%d", 
+                               &v1, &vn1, &v2, &vn2, &v3, &vn3);
+                vt1 = vt2 = vt3 = 0;
+            }
+            
+            if (parsed < 6) {
+                parsed = sscanf(ptr, "%d/%d %d/%d %d/%d", 
+                               &v1, &vt1, &v2, &vt2, &v3, &vt3);
+                vn1 = vn2 = vn3 = 0;
+            }
+            
+            if (parsed < 6) {
+                sscanf(ptr, "%d %d %d", &v1, &v2, &v3);
+                vt1 = vt2 = vt3 = 0;
+                vn1 = vn2 = vn3 = 0;
+            }
+            
+            // OBJ indices are 1-based, convert to 0-based
+            v1--; v2--; v3--;
+            if (vt1 > 0) vt1--;
+            if (vt2 > 0) vt2--;
+            if (vt3 > 0) vt3--;
+            if (vn1 > 0) vn1--;
+            if (vn2 > 0) vn2--;
+            if (vn3 > 0) vn3--;
+            
+            // Validate vertex indices
+            if (v1 < 0 || v1 >= vertexCount || 
+                v2 < 0 || v2 >= vertexCount || 
+                v3 < 0 || v3 >= vertexCount) {
+                printf("Warning: Invalid vertex indices in face %d, skipping\n", fIdx + 1);
+                continue;
+            }
+            
+            // Create unique vertices for this face
+            mesh->Vertices[uniqueVertIdx].Coordinates = vertices[v1];
+            mesh->Vertices[uniqueVertIdx].Normal = (normals && vn1 >= 0 && vn1 < normalCount) ? 
+                                                    normals[vn1] : vector3(0, 1, 0);
+            mesh->Vertices[uniqueVertIdx].TextureCoordinates = (texCoords && vt1 >= 0 && vt1 < texCoordCount) ? 
+                                                                texCoords[vt1] : vector3_zero();
+            
+            mesh->Vertices[uniqueVertIdx + 1].Coordinates = vertices[v2];
+            mesh->Vertices[uniqueVertIdx + 1].Normal = (normals && vn2 >= 0 && vn2 < normalCount) ? 
+                                                        normals[vn2] : vector3(0, 1, 0);
+            mesh->Vertices[uniqueVertIdx + 1].TextureCoordinates = (texCoords && vt2 >= 0 && vt2 < texCoordCount) ? 
+                                                                    texCoords[vt2] : vector3_zero();
+            
+            mesh->Vertices[uniqueVertIdx + 2].Coordinates = vertices[v3];
+            mesh->Vertices[uniqueVertIdx + 2].Normal = (normals && vn3 >= 0 && vn3 < normalCount) ? 
+                                                        normals[vn3] : vector3(0, 1, 0);
+            mesh->Vertices[uniqueVertIdx + 2].TextureCoordinates = (texCoords && vt3 >= 0 && vt3 < texCoordCount) ? 
+                                                                    texCoords[vt3] : vector3_zero();
+            
+            // Set face indices
+            mesh->faces[fIdx].A = uniqueVertIdx;
+            mesh->faces[fIdx].B = uniqueVertIdx + 1;
+            mesh->faces[fIdx].C = uniqueVertIdx + 2;
+            
+            uniqueVertIdx += 3;
+            fIdx++;
+        }
+    }
+    
+    // Clean up
+    free(vertices);
+    if (normals) free(normals);
+    if (texCoords) free(texCoords);
+    fclose(file);
+    
+    printf("Loaded OBJ '%s': %d vertices, %d faces\n", filename, mesh->verticesCount, mesh->faceCount);
+    return mesh;
 }
 
 #endif

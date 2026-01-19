@@ -116,6 +116,7 @@ The JSON scene format allows you to:
   "models": [
     {
       "modelFile": "cube.obj",
+      "textureFile": "texture.png",
       "position": [0, 0, 0],
       "rotation": [0, 0, 0],
       "scale": [1, 1, 1]
@@ -136,10 +137,54 @@ The JSON scene format allows you to:
 - `color` (int): Light color in 0xRRGGBB format
 
 **Models:**
-- `modelFile` (string): Path to 3D model file
+- `modelFile` (string): Path to 3D model file (OBJ format supported)
+- `textureFile` (string): Path to texture image file (PNG, BMP, etc.)
+- `mesh` (object): Inline mesh data (alternative to modelFile)
+  - `vertices` (array): Array of vertex objects
+    - `coordinates` (array[3]): Vertex position [x, y, z]
+    - `normal` (array[3]): Vertex normal [x, y, z] (optional, default: [0, 1, 0])
+    - `texCoord` (array[2]): Texture coordinates [u, v] (optional, default: [0, 0])
+  - `faces` (array): Array of face triangles, each as [vertexA, vertexB, vertexC] indices
 - `position` (array[3]): Model position [x, y, z]
 - `rotation` (array[3]): Model rotation [x, y, z] in radians
 - `scale` (array[3]): Model scale [x, y, z]
+
+**Note:** Either `modelFile` or `mesh` must be provided for each model. `textureFile` is optional.
+
+#### Model File Formats
+
+**OBJ File Support:**
+- Wavefront OBJ format (.obj files)
+- Supports vertices (v), normals (vn), texture coordinates (vt), and faces (f)
+- Face formats supported: `f v1 v2 v3`, `f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3`, `f v1//vn1 v2//vn2 v3//vn3`, `f v1/vt1 v2/vt2 v3/vt3`
+- Example: `cube.obj` is provided as a sample model
+
+**Texture File Support:**
+- PNG, BMP, and other image formats supported by SDL_image
+- Automatically loaded when `textureFile` is specified
+- Applied to the mesh for texture mapping during rendering
+- Example: `texture.png` can be used as a texture
+
+**Inline Mesh Data:**
+Instead of loading from a file, you can define mesh data directly in the JSON:
+
+```json
+{
+  "textureFile": "texture.png",
+  "mesh": {
+    "vertices": [
+      {"coordinates": [-1, -1, -1], "normal": [0, 0, -1], "texCoord": [0, 0]},
+      {"coordinates": [ 1, -1, -1], "normal": [0, 0, -1], "texCoord": [1, 0]},
+      {"coordinates": [ 1,  1, -1], "normal": [0, 0, -1], "texCoord": [1, 1]},
+      {"coordinates": [-1,  1, -1], "normal": [0, 0, -1], "texCoord": [0, 1]}
+    ],
+    "faces": [
+      [0, 1, 2],
+      [0, 2, 3]
+    ]
+  }
+}
+```
 
 ## API Reference
 
@@ -342,12 +387,37 @@ make test_scene_json
 
 - `scene_json.h` - Header file with API declarations
 - `scene_json.c` - Implementation of scene loading/saving/rendering
+- `babylon3D.h` - Babylon3D engine header with mesh and rendering functions
+- `babylon3D.c` - Babylon3D engine implementation including OBJ loader
 - `scene_viewer.c` - Example program for viewing JSON scenes
 - `test_scene_json.c` - Test program for JSON functionality
 - `test_stubs.c` - Stub implementations for testing without SDL
 - `example_2d_scene.json` - Example 2D scene
-- `example_3d_scene.json` - Example 3D scene
+- `example_3d_scene.json` - Example 3D scene using external OBJ file
+- `example_3d_scene_inline.json` - Example 3D scene using inline mesh data
+- `cube.obj` - Sample cube model in Wavefront OBJ format
 - `cJSON.h`, `cJSON.c` - JSON parsing library
+
+## Model Files
+
+### Creating OBJ Files
+
+The system supports Wavefront OBJ files. A sample `cube.obj` is provided. You can:
+- Create OBJ files using 3D modeling software (Blender, Maya, etc.)
+- Use the provided `cube.obj` as a template
+- Define models inline in JSON for simple geometries
+
+### Inline vs. External Models
+
+**Use external OBJ files when:**
+- Models are complex with many vertices
+- Models are reused across multiple scenes
+- Models are created by 3D modeling tools
+
+**Use inline mesh data when:**
+- Models are simple (< 100 vertices)
+- Models are scene-specific
+- You want self-contained JSON files
 
 ## Color Format
 

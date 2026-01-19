@@ -102,6 +102,7 @@ int main(int argc, char* argv[]) {
     // Add a model
     Model3D model = {0};
     model.modelFile = "cube.obj";
+    model.textureFile = "texture.png";  // Add texture file reference
     model.position = vector3(0.0f, 0.0f, 0.0f);
     model.rotation = vector3(0.0f, 0.0f, 0.0f);
     model.scale = vector3(1.0f, 1.0f, 1.0f);

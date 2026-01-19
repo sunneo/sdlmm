@@ -76,6 +76,7 @@ typedef struct {
 typedef struct {
     Mesh* mesh;
     char* modelFile;
+    char* textureFile;
     Vector3 position;
     Vector3 rotation;
     Vector3 scale;
