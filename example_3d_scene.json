@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "width": 800,
+  "height": 600,
+  "backgroundColor": 0,
+  "camera": {
+    "position": [0, 0, 10],
+    "target": [0, 0, 0]
+  },
+  "lights": [
+    {
+      "position": [5, 5, 5],
+      "intensity": 1.0,
+      "color": 16777215
+    }
+  ],
+  "models": [
+    {
+      "modelFile": "cube.obj",
+      "position": [0, 0, 0],
+      "rotation": [0, 0, 0],
+      "scale": [1, 1, 1]
+    }
+  ]
+}

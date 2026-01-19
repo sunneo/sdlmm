@@ -1,0 +1,67 @@
+{
+  "format": 0,
+  "width": 800,
+  "height": 600,
+  "backgroundColor": 16777215,
+  "shapes": [
+    {
+      "type": 0,
+      "layer": 0,
+      "x": 100,
+      "y": 100,
+      "width": 200,
+      "height": 150,
+      "borderColor": 0,
+      "fillColor": 16711680,
+      "hasBorder": true,
+      "hasFill": true
+    },
+    {
+      "type": 1,
+      "layer": 1,
+      "x": 400,
+      "y": 300,
+      "radius": 80,
+      "borderColor": 255,
+      "fillColor": 65280,
+      "hasBorder": true,
+      "hasFill": true
+    },
+    {
+      "type": 2,
+      "layer": 0,
+      "x": 500,
+      "y": 100,
+      "width": 180,
+      "height": 120,
+      "cornerRadius": 20,
+      "borderColor": 16776960,
+      "fillColor": 16744192,
+      "hasBorder": true,
+      "hasFill": true
+    },
+    {
+      "type": 3,
+      "layer": 2,
+      "x": 50,
+      "y": 50,
+      "x2": 750,
+      "y2": 550,
+      "borderColor": 8421504,
+      "hasBorder": true,
+      "hasFill": false
+    },
+    {
+      "type": 4,
+      "layer": 3,
+      "x": 300,
+      "y": 50,
+      "text": "Hello SDLMM+JSON!",
+      "fontFile": "FreeMono.ttf",
+      "fontSize": 24,
+      "fillColor": 0,
+      "hasBorder": false,
+      "hasFill": true
+    }
+  ]
+}
