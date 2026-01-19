@@ -1041,15 +1041,16 @@ void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int me
             Vertex pixelC = device_project(dev,vertexC,&transformMatrix, &worldMatrix);
             
             // Backface culling: compute cross product in screen space
-            // If the z-component of the cross product is positive, the triangle is front-facing
+            // Assumes counter-clockwise winding for front faces
+            // cross_z > 0 means front-facing, cross_z < 0 means back-facing
             float edge1_x = pixelB.Coordinates.x - pixelA.Coordinates.x;
             float edge1_y = pixelB.Coordinates.y - pixelA.Coordinates.y;
             float edge2_x = pixelC.Coordinates.x - pixelA.Coordinates.x;
             float edge2_y = pixelC.Coordinates.y - pixelA.Coordinates.y;
             float cross_z = edge1_x * edge2_y - edge1_y * edge2_x;
             
-            // Skip back-facing triangles (cross_z <= 0 means back-facing)
-            if (cross_z <= 0) {
+            // Skip back-facing triangles (cross_z < 0 means back-facing)
+            if (cross_z < 0) {
                 continue;
             }
             
