@@ -70,6 +70,7 @@ struct Device {
 // Mesh functions
 Mesh* softengine_mesh(const char* name, int verticesCount, int facesCount);
 void mesh_free(Mesh* mesh);
+Mesh* mesh_load_obj(const char* filename);
 
 // Device functions
 Device* device(int width, int height);

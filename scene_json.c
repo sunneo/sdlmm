@@ -4,10 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Constants for placeholder cube mesh
-#define CUBE_VERTICES 8
-#define CUBE_FACES 12
-
 // Helper function to read file contents
 static char* read_file(const char* filename) {
     FILE* file = fopen(filename, "r");
@@ -561,12 +557,21 @@ Scene3D* scene3d_load_from_json(const char* filename) {
                 model.scale = vector3(1.0f, 1.0f, 1.0f);
             }
             
-            // For now, create a simple cube mesh as placeholder
-            // In a real implementation, you would load the model from file
-            model.mesh = softengine_mesh("placeholder", CUBE_VERTICES, CUBE_FACES);
-            if (model.mesh) {
-                model.mesh->Position = model.position;
-                model.mesh->Rotation = model.rotation;
+            // Load mesh from model file if specified
+            if (model.modelFile) {
+                model.mesh = mesh_load_obj(model.modelFile);
+                if (model.mesh) {
+                    model.mesh->Position = model.position;
+                    model.mesh->Rotation = model.rotation;
+                } else {
+                    printf("Warning: Failed to load model '%s', skipping\n", model.modelFile);
+                    if (model.modelFile) free(model.modelFile);
+                    continue;
+                }
+            } else {
+                // No model file specified, skip this model
+                printf("Warning: No modelFile specified for model, skipping\n");
+                continue;
             }
             
             scene3d_add_model(scene, &model);
