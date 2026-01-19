@@ -1,5 +1,7 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "scene_json.h"
 
 int main(int argc, char* argv[]) {
@@ -42,12 +44,16 @@ int main(int argc, char* argv[]) {
     text.layer = 2;
     text.x = 300;
     text.y = 50;
-    text.text = "Hello JSON!";
-    text.fontFile = "FreeMono.ttf";
+    text.text = strdup("Hello JSON!");  // Use strdup for proper memory management
+    text.fontFile = strdup("FreeMono.ttf");
     text.fontSize = 24;
     text.fillColor = 0x000000;
     text.hasFill = 1;
     scene2d_add_shape(scene2d, &text);
+    
+    // Free temporary allocations
+    free(text.text);
+    free(text.fontFile);
     
     printf("  Added %d shapes\n", scene2d->shapeCount);
     

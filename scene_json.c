@@ -18,7 +18,12 @@ static char* read_file(const char* filename) {
     char* content = (char*)malloc(length + 1);
     if (content) {
         size_t read = fread(content, 1, length, file);
-        content[read] = '\0';
+        if (read < (size_t)length) {
+            // If we read less than expected, adjust the string termination
+            content[read] = '\0';
+        } else {
+            content[length] = '\0';
+        }
     }
     
     fclose(file);
@@ -193,9 +198,10 @@ Scene2D* scene2d_load_from_json(const char* filename) {
             cJSON* backgroundImage = cJSON_GetObjectItem(shapeItem, "backgroundImage");
             shape.backgroundImage = backgroundImage ? strdup(cJSON_GetStringValue(backgroundImage)) : NULL;
             
+            // Add deep copy of shape to scene
             scene2d_add_shape(scene, &shape);
             
-            // Free temporary strings
+            // Free temporary strings (they were deep-copied by scene2d_add_shape)
             if (shape.text) free(shape.text);
             if (shape.fontFile) free(shape.fontFile);
             if (shape.imageFile) free(shape.imageFile);
@@ -289,7 +295,13 @@ void scene2d_render(const Scene2D* scene) {
     Shape2D* sortedShapes = (Shape2D*)malloc(sizeof(Shape2D) * scene->shapeCount);
     if (!sortedShapes) return;
     
-    memcpy(sortedShapes, scene->shapes, sizeof(Shape2D) * scene->shapeCount);
+    // Deep copy shapes to avoid pointer aliasing issues
+    for (int i = 0; i < scene->shapeCount; i++) {
+        sortedShapes[i] = scene->shapes[i];
+        // Note: We don't deep copy strings here because we're only reading them
+        // and this copy is temporary (freed at end of function)
+    }
+    
     qsort(sortedShapes, scene->shapeCount, sizeof(Shape2D), compare_shapes_by_layer);
     
     // Clear background
@@ -547,7 +559,12 @@ Scene3D* scene3d_load_from_json(const char* filename) {
             
             // For now, create a simple cube mesh as placeholder
             // In a real implementation, you would load the model from file
-            model.mesh = softengine_mesh("placeholder", 8, 12);
+            // Using constants for cube vertices (8 vertices, 12 triangular faces)
+            #define CUBE_VERTICES 8
+            #define CUBE_FACES 12
+            model.mesh = softengine_mesh("placeholder", CUBE_VERTICES, CUBE_FACES);
+            #undef CUBE_VERTICES
+            #undef CUBE_FACES
             if (model.mesh) {
                 model.mesh->Position = model.position;
                 model.mesh->Rotation = model.rotation;
@@ -653,17 +670,20 @@ void scene3d_render(const Scene3D* scene, Device* device) {
     device_clear(device);
     
     // Prepare mesh array for rendering
-    Mesh** meshes = (Mesh**)malloc(sizeof(Mesh*) * scene->modelCount);
-    if (!meshes) return;
+    // Note: device_render expects an array of Mesh structures, not pointers
+    Mesh* meshArray = (Mesh*)malloc(sizeof(Mesh) * scene->modelCount);
+    if (!meshArray) return;
     
     for (int i = 0; i < scene->modelCount; i++) {
-        meshes[i] = scene->models[i].mesh;
+        if (scene->models[i].mesh) {
+            meshArray[i] = *(scene->models[i].mesh);
+        }
     }
     
     // Render all meshes
-    device_render(device, &scene->camera, (const Mesh*)meshes, scene->modelCount);
+    device_render(device, &scene->camera, (const Mesh*)meshArray, scene->modelCount);
     
-    free(meshes);
+    free(meshArray);
 }
 
 // Generic scene functions

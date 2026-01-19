@@ -1,0 +1,24 @@
+# Build artifacts
+*.o
+*.so
+*.a
+*.exe
+test
+test_scene_json
+scene_viewer
+babylon3D_cube
+
+# Test output
+test_2d_scene.json
+test_3d_scene.json
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
