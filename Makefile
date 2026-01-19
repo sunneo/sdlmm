@@ -14,5 +14,15 @@ LDLIBS+=-lSDL -lm -lpthread -lSDL_ttf -lSDL_image -lfreetype -fopenmp
 all: test
 
 test: sdlmm.o 
+
+test_scene_json: test_scene_json.c scene_json.c test_stubs.c cJSON.c
+	gcc $(CFLAGS) test_scene_json.c scene_json.c test_stubs.c cJSON.c -lm -o test_scene_json
+
+scene_viewer: scene_viewer.c sdlmm.c babylon3D.c scene_json.c cJSON.c
+	gcc $(CFLAGS) scene_viewer.c sdlmm.c babylon3D.c scene_json.c cJSON.c $(LDLIBS) -o scene_viewer
+
 babylon3D_cube: exams/babylon3D_cube.c sdlmm.c babylon3D.c
 	gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I../ -msse2 exams/babylon3D_cube.c ./sdlmm.c -lSDL -lm -lpthread -lSDL_ttf -lSDL_image -lfreetype -fopenmp -o babylon3D_cube
+
+clean:
+	rm -f *.o test test_scene_json scene_viewer babylon3D_cube test_2d_scene.json test_3d_scene.json
