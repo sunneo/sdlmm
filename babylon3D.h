@@ -76,7 +76,7 @@ Mesh* mesh_load_obj(const char* filename);
 Device* device(int width, int height);
 void device_free(Device* dev);
 void device_clear(Device* dev);
-void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength);
+void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength, const Vector3* lightPosition);
 
 // Texture functions
 Texture* texture_load(const char* filename);

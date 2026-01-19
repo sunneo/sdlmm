@@ -124,7 +124,7 @@ void device_clear(Device* dev) {
     memset(dev->depthbuffer, 0, dev->workingWidth * dev->workingHeight * sizeof(int));
 }
 
-void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength) {
+void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength, const Vector3* lightPosition) {
     // Stub implementation - just clear the buffer
     if (dev) {
         device_clear(dev);

@@ -116,6 +116,7 @@ The JSON scene format allows you to:
   "models": [
     {
       "modelFile": "cube.obj",
+      "textureFile": "texture.png",
       "position": [0, 0, 0],
       "rotation": [0, 0, 0],
       "scale": [1, 1, 1]
@@ -137,6 +138,7 @@ The JSON scene format allows you to:
 
 **Models:**
 - `modelFile` (string): Path to 3D model file (OBJ format supported)
+- `textureFile` (string): Path to texture image file (PNG, BMP, etc.)
 - `mesh` (object): Inline mesh data (alternative to modelFile)
   - `vertices` (array): Array of vertex objects
     - `coordinates` (array[3]): Vertex position [x, y, z]
@@ -147,7 +149,7 @@ The JSON scene format allows you to:
 - `rotation` (array[3]): Model rotation [x, y, z] in radians
 - `scale` (array[3]): Model scale [x, y, z]
 
-**Note:** Either `modelFile` or `mesh` must be provided for each model.
+**Note:** Either `modelFile` or `mesh` must be provided for each model. `textureFile` is optional.
 
 #### Model File Formats
 
@@ -157,11 +159,18 @@ The JSON scene format allows you to:
 - Face formats supported: `f v1 v2 v3`, `f v1/vt1/vn1 v2/vt2/vn2 v3/vt3/vn3`, `f v1//vn1 v2//vn2 v3//vn3`, `f v1/vt1 v2/vt2 v3/vt3`
 - Example: `cube.obj` is provided as a sample model
 
+**Texture File Support:**
+- PNG, BMP, and other image formats supported by SDL_image
+- Automatically loaded when `textureFile` is specified
+- Applied to the mesh for texture mapping during rendering
+- Example: `texture.png` can be used as a texture
+
 **Inline Mesh Data:**
 Instead of loading from a file, you can define mesh data directly in the JSON:
 
 ```json
 {
+  "textureFile": "texture.png",
   "mesh": {
     "vertices": [
       {"coordinates": [-1, -1, -1], "normal": [0, 0, -1], "texCoord": [0, 0]},

@@ -816,7 +816,7 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
     }
 }
 
-void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float color,const Texture* texture) {
+void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float color,const Texture* texture,const Vector3* lightPos) {
             if (v1->Coordinates.y > v2->Coordinates.y) {
                 Vertex* temp = v2;
                 v2 = v1;
@@ -835,11 +835,9 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
                 v1 = temp;
             }
 
-            Vector3 lightPos = vector3(0, 10, 10);
-
-            float nl1 = device_computeNDotL(&v1->WorldCoordinates, &v1->Normal, &lightPos);
-            float nl2 = device_computeNDotL(&v2->WorldCoordinates, &v2->Normal, &lightPos);
-            float nl3 = device_computeNDotL(&v3->WorldCoordinates, &v3->Normal, &lightPos);
+            float nl1 = device_computeNDotL(&v1->WorldCoordinates, &v1->Normal, (Vector3*)lightPos);
+            float nl2 = device_computeNDotL(&v2->WorldCoordinates, &v2->Normal, (Vector3*)lightPos);
+            float nl3 = device_computeNDotL(&v3->WorldCoordinates, &v3->Normal, (Vector3*)lightPos);
 
             DrawData data;
 
@@ -938,11 +936,16 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
 
 #if 1
 
-void device_render(Device* dev, const Camera* camera, const Mesh* meshes,int meshesLength){
+void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength, const Vector3* lightPosition){
     int index;
     Vector3 up = vector3_up();
     Matrix viewMatrix=matrix_LookAtLH(&camera->Position,&camera->Target,&up);
-    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1.0);            
+    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1.0);
+    
+    // Use default light if none provided
+    Vector3 defaultLight = vector3(0, 10, 10);
+    const Vector3* lightPos = lightPosition ? lightPosition : &defaultLight;
+    
     for(index = 0; index < meshesLength; index++) {
         int indexVertices;
         const Mesh* cMesh = &meshes[index];
@@ -960,7 +963,7 @@ void device_render(Device* dev, const Camera* camera, const Mesh* meshes,int mes
             Vertex pixelB = device_project(dev,vertexB,&transformMatrix, &worldMatrix);
             Vertex pixelC = device_project(dev,vertexC,&transformMatrix, &worldMatrix);
             float color=1.0f;
-            device_drawTriangle(dev,&pixelA, &pixelB, &pixelC, color, &cMesh->texture);
+            device_drawTriangle(dev,&pixelA, &pixelB, &pixelC, color, &cMesh->texture, lightPos);
         }
     }
     device_present(dev);

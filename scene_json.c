@@ -422,6 +422,7 @@ void scene3d_free(Scene3D* scene) {
     
     for (int i = 0; i < scene->modelCount; i++) {
         if (scene->models[i].modelFile) free(scene->models[i].modelFile);
+        if (scene->models[i].textureFile) free(scene->models[i].textureFile);
         if (scene->models[i].mesh) mesh_free(scene->models[i].mesh);
     }
     
@@ -439,6 +440,9 @@ void scene3d_add_model(Scene3D* scene, const Model3D* model) {
     scene->models[scene->modelCount] = *model;
     if (model->modelFile) {
         scene->models[scene->modelCount].modelFile = strdup(model->modelFile);
+    }
+    if (model->textureFile) {
+        scene->models[scene->modelCount].textureFile = strdup(model->textureFile);
     }
     
     scene->modelCount++;
@@ -627,6 +631,9 @@ Scene3D* scene3d_load_from_json(const char* filename) {
             cJSON* modelFile = cJSON_GetObjectItem(modelItem, "modelFile");
             model.modelFile = modelFile ? strdup(cJSON_GetStringValue(modelFile)) : NULL;
             
+            cJSON* textureFile = cJSON_GetObjectItem(modelItem, "textureFile");
+            model.textureFile = textureFile ? strdup(cJSON_GetStringValue(textureFile)) : NULL;
+            
             cJSON* position = cJSON_GetObjectItem(modelItem, "position");
             if (position && cJSON_IsArray(position) && cJSON_GetArraySize(position) >= 3) {
                 model.position.x = (float)cJSON_GetNumberValue(cJSON_GetArrayItem(position, 0));
@@ -659,9 +666,24 @@ Scene3D* scene3d_load_from_json(const char* filename) {
                 if (model.mesh) {
                     model.mesh->Position = model.position;
                     model.mesh->Rotation = model.rotation;
+                    
+                    // Load texture if specified
+                    if (model.textureFile) {
+                        Texture* tex = texture_load(model.textureFile);
+                        if (tex) {
+                            model.mesh->texture = *tex;
+                            free(tex);  // We copied the texture data, free the wrapper
+                            printf("Loaded texture '%s' for model '%s'\n", 
+                                   model.textureFile, model.modelFile);
+                        } else {
+                            printf("Warning: Failed to load texture '%s' for model '%s'\n", 
+                                   model.textureFile, model.modelFile);
+                        }
+                    }
                 } else {
                     printf("Warning: Failed to load model '%s', skipping\n", model.modelFile);
                     if (model.modelFile) free(model.modelFile);
+                    if (model.textureFile) free(model.textureFile);
                     continue;
                 }
             } else if (meshData) {
@@ -670,19 +692,35 @@ Scene3D* scene3d_load_from_json(const char* filename) {
                 if (model.mesh) {
                     model.mesh->Position = model.position;
                     model.mesh->Rotation = model.rotation;
+                    
+                    // Load texture if specified
+                    if (model.textureFile) {
+                        Texture* tex = texture_load(model.textureFile);
+                        if (tex) {
+                            model.mesh->texture = *tex;
+                            free(tex);  // We copied the texture data, free the wrapper
+                            printf("Loaded texture '%s' for inline mesh\n", model.textureFile);
+                        } else {
+                            printf("Warning: Failed to load texture '%s' for inline mesh\n", 
+                                   model.textureFile);
+                        }
+                    }
                 } else {
                     printf("Warning: Failed to load inline mesh data, skipping\n");
+                    if (model.textureFile) free(model.textureFile);
                     continue;
                 }
             } else {
                 // No model file or inline mesh specified, skip this model
                 printf("Warning: No modelFile or inline mesh data specified for model, skipping\n");
+                if (model.textureFile) free(model.textureFile);
                 continue;
             }
             
             scene3d_add_model(scene, &model);
             
             if (model.modelFile) free(model.modelFile);
+            if (model.textureFile) free(model.textureFile);
         }
     }
     
@@ -743,6 +781,10 @@ int scene3d_save_to_json(const Scene3D* scene, const char* filename) {
             cJSON_AddStringToObject(modelObj, "modelFile", model->modelFile);
         }
         
+        if (model->textureFile) {
+            cJSON_AddStringToObject(modelObj, "textureFile", model->textureFile);
+        }
+        
         cJSON* position = cJSON_CreateArray();
         cJSON_AddItemToArray(position, cJSON_CreateNumber(model->position.x));
         cJSON_AddItemToArray(position, cJSON_CreateNumber(model->position.y));
@@ -791,8 +833,14 @@ void scene3d_render(const Scene3D* scene, Device* device) {
         }
     }
     
+    // Use the first light from the scene, or NULL for default lighting
+    const Vector3* lightPos = NULL;
+    if (scene->lightCount > 0) {
+        lightPos = &scene->lights[0].position;
+    }
+    
     // Render all meshes - cast is safe as meshArray is already Mesh*
-    device_render(device, &scene->camera, (const Mesh*)meshArray, scene->modelCount);
+    device_render(device, &scene->camera, (const Mesh*)meshArray, scene->modelCount, lightPos);
     
     free(meshArray);
 }
