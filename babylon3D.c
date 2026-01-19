@@ -791,8 +791,11 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
     float sv = device_interpolate(data->va, data->vb, gradient1);
     float ev = device_interpolate(data->vc, data->vd, gradient2);
     float currentY=data->currentY;
-    // Removed OpenMP parallelization from scanline level to reduce overhead
-    // Parallelization is now done at triangle level for better performance with many cores
+    
+    // Parallelize at scanline pixel level - each thread processes different X coordinates
+    // This avoids race conditions because each thread writes to different pixels
+    // Only parallelize if scanline is long enough to justify threading overhead
+    #pragma omp parallel for if((ex - sx) > 64) schedule(static)
     for (x = sx; x < ex; x++) {
         float gradient = (ex > sx) ? ((float)(x - sx) / (float)(ex - sx)) : 0.0f;
 
@@ -955,8 +958,9 @@ void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int me
         Matrix worldMatrix = matrix_multiply(&rotationYPR,&translation);
         Matrix res1=matrix_multiply(&worldMatrix,&viewMatrix);
         Matrix transformMatrix = matrix_multiply(&res1,&projectionMatrix);
-        // Parallelize triangle rendering instead of scanline for better performance with many cores
-        #pragma omp parallel for firstprivate(worldMatrix,transformMatrix,lightPos)
+        
+        // Sequential triangle processing to avoid race conditions
+        // Parallelization moved to scanline pixel level where threads work on different X coordinates
         for(indexVertices = 0; indexVertices < cMesh->faceCount; indexVertices++) {
             Face* currentFace = &cMesh->faces[indexVertices];
             Vertex* vertexA=&cMesh->Vertices[currentFace->A];
