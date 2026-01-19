@@ -718,40 +718,11 @@ void device_putPixel(Device* dev,int x,int y,int z,int color){
         return;
     }
     int idx=y*dev->workingWidth+x;
-    
-    // Thread-safe depth buffer update using OpenMP atomic operations
-    // This prevents race conditions when parallel threads render overlapping triangles
-    // Fast path: atomically read depth and early exit if pixel is behind
-    int old_depth;
-    #pragma omp atomic read
-    old_depth = dev->depthbuffer[idx];
-    
-    if (old_depth < z) {
-        return;  // Early exit without lock - pixel is behind existing one
+    if (dev->depthbuffer[idx] < z) {
+        return;
     }
-    
-    // Slow path: need to update pixel - use atomic compare and swap
-    // We use GCC/Clang built-in atomic operations for fine-grained locking per pixel
-    // This allows different pixels to be updated in parallel without contention
-    while (1) {
-        // Atomically check if we can still write (depth test may have changed)
-        if (old_depth < z) {
-            return;  // Another thread wrote a closer pixel
-        }
-        
-        // Try to atomically update the depth buffer
-        // __sync_bool_compare_and_swap returns true if swap succeeded
-        if (__sync_bool_compare_and_swap(&dev->depthbuffer[idx], old_depth, z)) {
-            // Successfully updated depth buffer, now update color buffer
-            // Color buffer update doesn't need atomic since we "own" this pixel now
-            dev->backbuffer[idx] = color;
-            return;
-        }
-        
-        // CAS failed - another thread updated depth buffer, re-read and retry
-        #pragma omp atomic read
-        old_depth = dev->depthbuffer[idx];
-    }
+    dev->depthbuffer[idx]=z;
+    dev->backbuffer[idx]=color;
 }
 
 void device_drawPoint(Device* dev,const Vector3* point,int color){
@@ -820,8 +791,11 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
     float sv = device_interpolate(data->va, data->vb, gradient1);
     float ev = device_interpolate(data->vc, data->vd, gradient2);
     float currentY=data->currentY;
-    // Removed OpenMP parallelization from scanline level to reduce overhead
-    // Parallelization is now done at triangle level for better performance with many cores
+    
+    // Parallelize at scanline pixel level - each thread processes different X coordinates
+    // This avoids race conditions because each thread writes to different pixels
+    // Only parallelize if scanline is long enough to justify threading overhead
+    #pragma omp parallel for if((ex - sx) > 64) schedule(static)
     for (x = sx; x < ex; x++) {
         float gradient = (ex > sx) ? ((float)(x - sx) / (float)(ex - sx)) : 0.0f;
 
@@ -984,8 +958,9 @@ void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int me
         Matrix worldMatrix = matrix_multiply(&rotationYPR,&translation);
         Matrix res1=matrix_multiply(&worldMatrix,&viewMatrix);
         Matrix transformMatrix = matrix_multiply(&res1,&projectionMatrix);
-        // Parallelize triangle rendering instead of scanline for better performance with many cores
-        #pragma omp parallel for firstprivate(worldMatrix,transformMatrix,lightPos)
+        
+        // Sequential triangle processing to avoid race conditions
+        // Parallelization moved to scanline pixel level where threads work on different X coordinates
         for(indexVertices = 0; indexVertices < cMesh->faceCount; indexVertices++) {
             Face* currentFace = &cMesh->faces[indexVertices];
             Vertex* vertexA=&cMesh->Vertices[currentFace->A];
