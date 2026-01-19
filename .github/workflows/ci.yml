@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      # List of apt packages to cache and install
+      APT_PACKAGES: "libsdl1.2-dev libsdl-ttf2.0-dev libsdl-image1.2-dev libfreetype6-dev"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare apt cache directory
+        run: |
+          sudo mkdir -p /var/cache/apt/archives
+          sudo chown "$USER:$USER" /var/cache/apt/archives
+
+      - name: Cache apt packages (.deb files)
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ runner.os }}-${{ env.APT_PACKAGES }}
+          restore-keys: |
+            apt-${{ runner.os }}-
+
+      - name: Install SDL build dependencies
+        run: |
+          sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=10 -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${APT_PACKAGES}
+
+      - name: Build (if Makefile exists)
+        run: |
+          if [ -f Makefile ]; then
+            make
+          else
+            echo "No Makefile found; skipping build."
+          fi
