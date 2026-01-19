@@ -791,7 +791,8 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
     float sv = device_interpolate(data->va, data->vb, gradient1);
     float ev = device_interpolate(data->vc, data->vd, gradient2);
     float currentY=data->currentY;
-#pragma omp parallel for firstprivate(z1,z2,snl,enl,su,eu,sv,ev,texture)
+    // Removed OpenMP parallelization from scanline level to reduce overhead
+    // Parallelization is now done at triangle level for better performance with many cores
     for (x = sx; x < ex; x++) {
         float gradient = (ex > sx) ? ((float)(x - sx) / (float)(ex - sx)) : 0.0f;
 
@@ -954,6 +955,8 @@ void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int me
         Matrix worldMatrix = matrix_multiply(&rotationYPR,&translation);
         Matrix res1=matrix_multiply(&worldMatrix,&viewMatrix);
         Matrix transformMatrix = matrix_multiply(&res1,&projectionMatrix);
+        // Parallelize triangle rendering instead of scanline for better performance with many cores
+        #pragma omp parallel for firstprivate(worldMatrix,transformMatrix,lightPos)
         for(indexVertices = 0; indexVertices < cMesh->faceCount; indexVertices++) {
             Face* currentFace = &cMesh->faces[indexVertices];
             Vertex* vertexA=&cMesh->Vertices[currentFace->A];
