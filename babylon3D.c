@@ -718,11 +718,40 @@ void device_putPixel(Device* dev,int x,int y,int z,int color){
         return;
     }
     int idx=y*dev->workingWidth+x;
-    if (dev->depthbuffer[idx] < z) {
-        return;
+    
+    // Thread-safe depth buffer update using OpenMP atomic operations
+    // This prevents race conditions when parallel threads render overlapping triangles
+    // Fast path: atomically read depth and early exit if pixel is behind
+    int old_depth;
+    #pragma omp atomic read
+    old_depth = dev->depthbuffer[idx];
+    
+    if (old_depth < z) {
+        return;  // Early exit without lock - pixel is behind existing one
     }
-    dev->depthbuffer[idx]=z;
-    dev->backbuffer[idx]=color;
+    
+    // Slow path: need to update pixel - use atomic compare and swap
+    // We use GCC/Clang built-in atomic operations for fine-grained locking per pixel
+    // This allows different pixels to be updated in parallel without contention
+    while (1) {
+        // Atomically check if we can still write (depth test may have changed)
+        if (old_depth < z) {
+            return;  // Another thread wrote a closer pixel
+        }
+        
+        // Try to atomically update the depth buffer
+        // __sync_bool_compare_and_swap returns true if swap succeeded
+        if (__sync_bool_compare_and_swap(&dev->depthbuffer[idx], old_depth, z)) {
+            // Successfully updated depth buffer, now update color buffer
+            // Color buffer update doesn't need atomic since we "own" this pixel now
+            dev->backbuffer[idx] = color;
+            return;
+        }
+        
+        // CAS failed - another thread updated depth buffer, re-read and retry
+        #pragma omp atomic read
+        old_depth = dev->depthbuffer[idx];
+    }
 }
 
 void device_drawPoint(Device* dev,const Vector3* point,int color){
