@@ -145,7 +145,7 @@ static void drawfnc() {
     cubeMesh->Rotation.y += 0.01;
     
     // Render the mesh
-    device_render(m_device, &camera, cubeMesh, 1);
+    device_render(m_device, &camera, cubeMesh, 1,NULL);
     
     // Present to screen
     flushscreen();
