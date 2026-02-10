@@ -69,6 +69,56 @@ static Camera camera;
 static Mesh* bodyMeshes = NULL;  /* array of meshes, one per body */
 static int meshCount = 0;
 
+/* Glow colors for body textures - yellow/golden like NVIDIA nbody demo */
+static const int glowColors[] = {
+    0xffc020, 0xffe040, 0xffb010, 0xffd830, 0xffa000,
+    0xffe060, 0xff9010, 0xffc840, 0xffb830, 0xffd050
+};
+#define NUM_GLOW_COLORS 10
+
+static void generate_glow_texture(Texture* tex, int baseColor) {
+    int size = 32;
+    int* buf = (int*)malloc(sizeof(int) * size * size);
+    tex->width = size;
+    tex->height = size;
+    tex->internalBuffer = buf;
+
+    int br = (baseColor >> 16) & 0xff;
+    int bg = (baseColor >> 8) & 0xff;
+    int bb = baseColor & 0xff;
+
+    float cx = size / 2.0f, cy = size / 2.0f;
+    float maxR = size / 2.0f;
+    int x, y;
+    for (y = 0; y < size; y++) {
+        for (x = 0; x < size; x++) {
+            float dx = x - cx, dy = y - cy;
+            float dist = sqrtf(dx*dx + dy*dy) / maxR;
+            if (dist > 1.0f) dist = 1.0f;
+            float intensity;
+            int r, g, b;
+            if (dist < 0.3f) {
+                /* White-hot core */
+                float t = dist / 0.3f;
+                r = 255 - (int)((255 - br) * t);
+                g = 255 - (int)((255 - bg) * t);
+                b = 255 - (int)((255 - bb) * t);
+            } else {
+                /* Color to dark */
+                float t = (dist - 0.3f) / 0.7f;
+                intensity = 1.0f - t * t;
+                r = (int)(br * intensity);
+                g = (int)(bg * intensity);
+                b = (int)(bb * intensity);
+            }
+            if (r > 255) r = 255; if (r < 0) r = 0;
+            if (g > 255) g = 255; if (g < 0) g = 0;
+            if (b > 255) b = 255; if (b < 0) b = 0;
+            buf[y * size + x] = (r << 16) | (g << 8) | b;
+        }
+    }
+}
+
 #ifdef __linux__
 #include <sys/time.h>
 #else
@@ -146,7 +196,7 @@ static void Nbody(int i, int sz) {
  * Create a sphere mesh with given segments/rings.
  * The sphere is unit-sized; we scale it via Position/offset in the render.
  */
-static void init_sphere_mesh(Mesh* mesh, float radius) {
+static void init_sphere_mesh(Mesh* mesh, float radius, int bodyIndex) {
     int seg, ring, idx, fidx;
     int vCount = VERTS_PER_SPHERE;
     int fCount = FACES_PER_SPHERE;
@@ -159,6 +209,7 @@ static void init_sphere_mesh(Mesh* mesh, float radius) {
     mesh->texture.internalBuffer = NULL;
     mesh->texture.width = 0;
     mesh->texture.height = 0;
+    generate_glow_texture(&mesh->texture, glowColors[bodyIndex % NUM_GLOW_COLORS]);
     strcpy(mesh->name, "body");
 
     /* Generate vertices */
@@ -217,7 +268,7 @@ static void initMeshes() {
     bodyMeshes = (Mesh*)malloc(sizeof(Mesh) * meshCount);
     for (i = 0; i < meshCount; i++) {
         float r = 0.3f + (Mass[i] / MAX_Mass) * 0.5f;
-        init_sphere_mesh(&bodyMeshes[i], r);
+        init_sphere_mesh(&bodyMeshes[i], r, i);
     }
 }
 
@@ -227,6 +278,7 @@ static void freeMeshes() {
         for (i = 0; i < meshCount; i++) {
             if (bodyMeshes[i].Vertices) free(bodyMeshes[i].Vertices);
             if (bodyMeshes[i].faces) free(bodyMeshes[i].faces);
+            if (bodyMeshes[i].texture.internalBuffer) free(bodyMeshes[i].texture.internalBuffer);
         }
         free(bodyMeshes);
         bodyMeshes = NULL;

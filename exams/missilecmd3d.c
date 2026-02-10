@@ -100,6 +100,50 @@ static Mesh missileSphere;
 static Mesh ourExplSphere;
 static Mesh ourMissileSphere;
 
+static void generate_glow_texture(Texture* tex, int baseColor) {
+    int size = 16;
+    int* buf = (int*)malloc(sizeof(int) * size * size);
+    if (!buf) {
+        tex->internalBuffer = NULL;
+        tex->width = 0;
+        tex->height = 0;
+        return;
+    }
+    tex->width = size;
+    tex->height = size;
+    tex->internalBuffer = buf;
+    int br = (baseColor >> 16) & 0xff;
+    int bg = (baseColor >> 8) & 0xff;
+    int bb = baseColor & 0xff;
+    float cx = size / 2.0f, cy = size / 2.0f;
+    float maxR = size / 2.0f;
+    int x, y;
+    for (y = 0; y < size; y++) {
+        for (x = 0; x < size; x++) {
+            float dx = x - cx, dy = y - cy;
+            float dist = sqrtf(dx*dx + dy*dy) / maxR;
+            if (dist > 1.0f) dist = 1.0f;
+            int r, g, b;
+            if (dist < 0.3f) {
+                float t = dist / 0.3f;
+                r = 255 - (int)((255 - br) * t);
+                g = 255 - (int)((255 - bg) * t);
+                b = 255 - (int)((255 - bb) * t);
+            } else {
+                float t = (dist - 0.3f) / 0.7f;
+                float intensity = 1.0f - t * t;
+                r = (int)(br * intensity);
+                g = (int)(bg * intensity);
+                b = (int)(bb * intensity);
+            }
+            if (r > 255) r = 255; if (r < 0) r = 0;
+            if (g > 255) g = 255; if (g < 0) g = 0;
+            if (b > 255) b = 255; if (b < 0) b = 0;
+            buf[y * size + x] = (r << 16) | (g << 8) | b;
+        }
+    }
+}
+
 static float frandf() { return ((float)rand()) / RAND_MAX; }
 
 /* --- Sphere mesh helper (fills pre-allocated mesh) --- */
@@ -245,10 +289,15 @@ static Mesh meshAt(const Mesh* tpl, Vector3 pos) {
 /* --- Initialize all scene template meshes --- */
 static void init_scene_meshes() {
     fill_cube(&groundMesh, WORLD_WIDTH + 4, 0.3f, WORLD_DEPTH + 4);
+    generate_glow_texture(&groundMesh.texture, 0x403020);
     fill_sphere(&explSphere, 1.0f, SPH_SEG, SPH_RING);
+    generate_glow_texture(&explSphere.texture, 0xff4010);
     fill_sphere(&missileSphere, 0.2f, 4, 3);
+    generate_glow_texture(&missileSphere.texture, 0x40ff40);
     fill_sphere(&ourExplSphere, 0.8f, SPH_SEG, SPH_RING);
+    generate_glow_texture(&ourExplSphere.texture, 0x40c0ff);
     fill_sphere(&ourMissileSphere, 0.15f, 4, 3);
+    generate_glow_texture(&ourMissileSphere.texture, 0xe0e0ff);
 }
 
 /* --- Initialize buildings --- */
@@ -500,6 +549,22 @@ static void drawScene() {
 
     /* Render all meshes */
     device_clear(m_device);
+
+    /* Purple gradient sky background */
+    {
+        int bx, by;
+        for (by = 0; by < SCREENY; by++) {
+            float t = (float)by / SCREENY;
+            int r = (int)(20 + t * 40);
+            int g = (int)(0 + t * 15);
+            int b = (int)(60 + t * 50);
+            int color = (r << 16) | (g << 8) | b;
+            for (bx = 0; bx < SCREENX; bx++) {
+                m_device->backbuffer[by * SCREENX + bx] = color;
+            }
+        }
+    }
+
     device_render(m_device, &camera, renderMeshes, renderMeshCount, &lightPos);
 
     /* HUD overlay (drawn after 3D render) */
@@ -553,6 +618,7 @@ static void onkey(int k, int ctrl, int on) {
 static void freeMeshInternals(Mesh* m) {
     if (m->Vertices) { free(m->Vertices); m->Vertices = NULL; }
     if (m->faces) { free(m->faces); m->faces = NULL; }
+    if (m->texture.internalBuffer) { free(m->texture.internalBuffer); m->texture.internalBuffer = NULL; }
 }
 
 /* --- Cleanup --- */
@@ -590,8 +656,11 @@ int main(int argc, char** argv) {
 
     /* Create template meshes */
     fill_cube(&buildingMesh, 1.5f, 2.0f, 1.5f);      /* Alive building */
+    generate_glow_texture(&buildingMesh.texture, 0x6080a0);
     fill_cube(&destroyedMesh, 1.5f, 0.5f, 1.5f);     /* Destroyed building (short) */
+    generate_glow_texture(&destroyedMesh.texture, 0x804020);
     fill_cube(&launcherMesh, 1.0f, 1.2f, 1.0f);       /* Launcher (smaller) */
+    generate_glow_texture(&launcherMesh.texture, 0x60a060);
     init_scene_meshes();
 
     /* Initialize game */
