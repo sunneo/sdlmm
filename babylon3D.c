@@ -839,9 +839,9 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
             textureColor = 0xffffff;   
         }
         Vector3 pt=vector3(x,currentY,z);
-        // Apply lighting with ambient term to prevent texture from being too dark
+        // Apply lighting with ambient term to prevent untextured meshes from being too dark
         // ambient (0.4) + diffuse lighting (0.6 * ndotl)
-        float lightingFactor = 0.2f + 0.8f * ndotl;
+        float lightingFactor = 0.4f + 0.6f * ndotl;
         device_drawPoint(dev,&pt,device_color4ref(textureColor,lightingFactor,lightingFactor,lightingFactor, 1));
     }
 }
