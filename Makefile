@@ -24,5 +24,11 @@ scene_viewer: scene_viewer.c sdlmm.c babylon3D.c scene_json.c cJSON.c
 babylon3D_cube: exams/babylon3D_cube.c sdlmm.c babylon3D.c
 	gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I../ -msse2 exams/babylon3D_cube.c ./sdlmm.c -lSDL -lm -lpthread -lSDL_ttf -lSDL_image -lfreetype -fopenmp -o babylon3D_cube
 
+nbody3d: exams/nbody3d.c sdlmm.c babylon3D.c
+	gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I../ -msse2 exams/nbody3d.c ./sdlmm.c -lSDL -lm -lpthread -lSDL_ttf -lSDL_image -lfreetype -fopenmp -o nbody3d
+
+missilecmd3d: exams/missilecmd3d.c sdlmm.c babylon3D.c
+	gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I../ -msse2 exams/missilecmd3d.c ./sdlmm.c -lSDL -lm -lpthread -lSDL_ttf -lSDL_image -lfreetype -fopenmp -o missilecmd3d
+
 clean:
-	rm -f *.o test test_scene_json scene_viewer babylon3D_cube test_2d_scene.json test_3d_scene.json
+	rm -f *.o test test_scene_json scene_viewer babylon3D_cube nbody3d missilecmd3d test_2d_scene.json test_3d_scene.json

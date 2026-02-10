@@ -7,6 +7,8 @@ test
 test_scene_json
 scene_viewer
 babylon3D_cube
+nbody3d
+missilecmd3d
 
 # Test output
 test_2d_scene.json
