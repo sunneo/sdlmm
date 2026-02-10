@@ -95,15 +95,10 @@ static int renderMeshCap = 0;
 
 /* Shared singleton meshes for scene objects */
 static Mesh groundMesh;
-static int groundInit = 0;
 static Mesh explSphere;
-static int explInit = 0;
 static Mesh missileSphere;
-static int mInit = 0;
 static Mesh ourExplSphere;
-static int oeInit = 0;
 static Mesh ourMissileSphere;
-static int omInit = 0;
 
 static float frandf() { return ((float)rand()) / RAND_MAX; }
 
@@ -245,6 +240,15 @@ static Mesh meshAt(const Mesh* tpl, Vector3 pos) {
     Mesh m = *tpl;
     m.Position = pos;
     return m;
+}
+
+/* --- Initialize all scene template meshes --- */
+static void init_scene_meshes() {
+    fill_cube(&groundMesh, WORLD_WIDTH + 4, 0.3f, WORLD_DEPTH + 4);
+    fill_sphere(&explSphere, 1.0f, SPH_SEG, SPH_RING);
+    fill_sphere(&missileSphere, 0.2f, 4, 3);
+    fill_sphere(&ourExplSphere, 0.8f, SPH_SEG, SPH_RING);
+    fill_sphere(&ourMissileSphere, 0.15f, 4, 3);
 }
 
 /* --- Initialize buildings --- */
@@ -451,15 +455,7 @@ static void drawScene() {
     renderMeshCount = 0;
 
     /* Ground: a flat wide cube */
-    {
-        if (!groundInit) {
-            fill_cube(&groundMesh, WORLD_WIDTH + 4, 0.3f, WORLD_DEPTH + 4);
-            groundInit = 1;
-        }
-        Mesh g = groundMesh;
-        g.Position = vector3(0, GROUND_Y - 0.15f, 0);
-        renderMeshes[renderMeshCount++] = g;
-    }
+    renderMeshes[renderMeshCount++] = meshAt(&groundMesh, vector3(0, GROUND_Y - 0.15f, 0));
 
     /* Buildings and launcher */
     for (i = 0; i < MAX_BUILD; i++) {
@@ -478,26 +474,9 @@ static void drawScene() {
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive) continue;
         if (enemies[i].expl) {
-            /* Explosion sphere */
-            if (!explInit) {
-                fill_sphere(&explSphere, 1.0f, SPH_SEG, SPH_RING);
-                explInit = 1;
-            }
-            Mesh e = explSphere;
-            /* Scale by adjusting the vertex coordinates is expensive,
-               so we just set position and accept uniform explosion size.
-               The collision uses the actual radius for gameplay. */
-            e.Position = enemies[i].pos;
-            renderMeshes[renderMeshCount++] = e;
+            renderMeshes[renderMeshCount++] = meshAt(&explSphere, enemies[i].pos);
         } else {
-            /* Small sphere for in-flight missile */
-            if (!mInit) {
-                fill_sphere(&missileSphere, 0.2f, 4, 3);
-                mInit = 1;
-            }
-            Mesh m = missileSphere;
-            m.Position = enemies[i].pos;
-            renderMeshes[renderMeshCount++] = m;
+            renderMeshes[renderMeshCount++] = meshAt(&missileSphere, enemies[i].pos);
         }
     }
 
@@ -505,21 +484,9 @@ static void drawScene() {
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (!ourMissiles[i].active) continue;
         if (ourMissiles[i].expl) {
-            if (!oeInit) {
-                fill_sphere(&ourExplSphere, 0.8f, SPH_SEG, SPH_RING);
-                oeInit = 1;
-            }
-            Mesh e = ourExplSphere;
-            e.Position = ourMissiles[i].pos;
-            renderMeshes[renderMeshCount++] = e;
+            renderMeshes[renderMeshCount++] = meshAt(&ourExplSphere, ourMissiles[i].pos);
         } else {
-            if (!omInit) {
-                fill_sphere(&ourMissileSphere, 0.15f, 4, 3);
-                omInit = 1;
-            }
-            Mesh m = ourMissileSphere;
-            m.Position = ourMissiles[i].pos;
-            renderMeshes[renderMeshCount++] = m;
+            renderMeshes[renderMeshCount++] = meshAt(&ourMissileSphere, ourMissiles[i].pos);
         }
     }
 
@@ -594,11 +561,11 @@ static void cleanup() {
     freeMeshInternals(&buildingMesh);
     freeMeshInternals(&destroyedMesh);
     freeMeshInternals(&launcherMesh);
-    if (groundInit) freeMeshInternals(&groundMesh);
-    if (explInit) freeMeshInternals(&explSphere);
-    if (mInit) freeMeshInternals(&missileSphere);
-    if (oeInit) freeMeshInternals(&ourExplSphere);
-    if (omInit) freeMeshInternals(&ourMissileSphere);
+    freeMeshInternals(&groundMesh);
+    freeMeshInternals(&explSphere);
+    freeMeshInternals(&missileSphere);
+    freeMeshInternals(&ourExplSphere);
+    freeMeshInternals(&ourMissileSphere);
     if (renderMeshes) { free(renderMeshes); renderMeshes = NULL; }
 }
 
@@ -625,6 +592,7 @@ int main(int argc, char** argv) {
     fill_cube(&buildingMesh, 1.5f, 2.0f, 1.5f);      /* Alive building */
     fill_cube(&destroyedMesh, 1.5f, 0.5f, 1.5f);     /* Destroyed building (short) */
     fill_cube(&launcherMesh, 1.0f, 1.2f, 1.0f);       /* Launcher (smaller) */
+    init_scene_meshes();
 
     /* Initialize game */
     init_builds();
