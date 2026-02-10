@@ -656,6 +656,9 @@ static void device_drawPoint(Device* dev,const Vector3* point,int color){
 }
 static __inline float maxf(float a,float b){ return a>b?a:b;}
 static __inline float minf(float a,float b){ return a<b?a:b;}
+static __inline float compute_clip_w(const Vector3* v, const Matrix* m) {
+    return v->x * m->m[3] + v->y * m->m[7] + v->z * m->m[11] + m->m[15];
+}
 static __inline float device_clamp(float value,float minv,float maxv){
     return maxf(minv, minf(value, maxv));
 }
@@ -674,7 +677,7 @@ static Vertex device_project(const Device* dev,const Vertex* vertex,const Matrix
     ret.Coordinates.x=x;
     ret.Coordinates.y=y;
     ret.Coordinates.z=point2d.z;
-    ret.Normal = vector3_transform_coordinates(&vertex->Normal, world);
+    ret.Normal = vector3_transform_normal(&vertex->Normal, world);
     //point3DWorld
     ret.WorldCoordinates=vector3_transform_coordinates(&vertex->Coordinates,world);
     ret.TextureCoordinates = vertex->TextureCoordinates;
@@ -728,14 +731,16 @@ static void device_processScanLine(Device* dev,const DrawData* data,const Vertex
 
         int textureColor;
 
-        if (texture){
+        if (texture && texture->internalBuffer){
             textureColor = texture_map(texture,u, v); 
         }
         else {
             textureColor = 0xffffff;   
         }
         Vector3 pt=vector3(x,currentY,z);
-        device_drawPoint(dev,&pt,device_color4ref(textureColor,ndotl ,ndotl,ndotl, 1));
+        // Apply lighting with ambient term to prevent untextured meshes from being too dark
+        float lightingFactor = 0.4f + 0.6f * ndotl;
+        device_drawPoint(dev,&pt,device_color4ref(textureColor,lightingFactor,lightingFactor,lightingFactor, 1));
     }
 }
 
@@ -865,7 +870,13 @@ static void device_render(Device* dev, const Camera* camera, const Mesh* meshes,
     int index;
     Vector3 up = vector3_up();
     Matrix viewMatrix=matrix_LookAtLH(&camera->Position,&camera->Target,&up);
-    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1.0);            
+    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1000.0);
+    
+    float screenW = (float)dev->workingWidth;
+    float screenH = (float)dev->workingHeight;
+    float marginX = screenW * 2.0f;
+    float marginY = screenH * 2.0f;
+    
     for(index = 0; index < meshesLength; index++) {
         int indexVertices;
         const Mesh* cMesh = &meshes[index];
@@ -874,14 +885,46 @@ static void device_render(Device* dev, const Camera* camera, const Mesh* meshes,
         Matrix worldMatrix = matrix_multiply(&rotationYPR,&translation);
         Matrix res1=matrix_multiply(&worldMatrix,&viewMatrix);
         Matrix transformMatrix = matrix_multiply(&res1,&projectionMatrix);
+        
+        // Per-mesh frustum culling: skip if mesh center is behind camera
+        {
+            Vector3 meshCenter = cMesh->Position;
+            Vector3 viewPos = vector3_transform_coordinates(&meshCenter, &res1);
+            if (viewPos.z < -2.0f) {
+                continue;
+            }
+        }
+        
         for(indexVertices = 0; indexVertices < cMesh->verticesCount; indexVertices++) {
             Face* currentFace = &cMesh->faces[indexVertices];
             Vertex* vertexA=&cMesh->Vertices[currentFace->A];
             Vertex* vertexB=&cMesh->Vertices[currentFace->B];
             Vertex* vertexC=&cMesh->Vertices[currentFace->C];
+            
+            // Per-vertex near-plane clip: skip triangles with vertices behind camera
+            if (compute_clip_w(&vertexA->Coordinates, &transformMatrix) <= 0.001f ||
+                compute_clip_w(&vertexB->Coordinates, &transformMatrix) <= 0.001f ||
+                compute_clip_w(&vertexC->Coordinates, &transformMatrix) <= 0.001f) {
+                continue;
+            }
+            
             Vertex pixelA = device_project(dev,vertexA,&transformMatrix, &worldMatrix);
             Vertex pixelB = device_project(dev,vertexB,&transformMatrix, &worldMatrix);
             Vertex pixelC = device_project(dev,vertexC,&transformMatrix, &worldMatrix);
+            
+            // Screen-space bounds culling
+            {
+                float minX = minf(pixelA.Coordinates.x, minf(pixelB.Coordinates.x, pixelC.Coordinates.x));
+                float maxX = maxf(pixelA.Coordinates.x, maxf(pixelB.Coordinates.x, pixelC.Coordinates.x));
+                float minY = minf(pixelA.Coordinates.y, minf(pixelB.Coordinates.y, pixelC.Coordinates.y));
+                float maxY = maxf(pixelA.Coordinates.y, maxf(pixelB.Coordinates.y, pixelC.Coordinates.y));
+                
+                if (maxX < -marginX || minX > screenW + marginX ||
+                    maxY < -marginY || minY > screenH + marginY) {
+                    continue;
+                }
+            }
+            
             float color=1.0f;
             device_drawTriangle(dev,&pixelA, &pixelB, &pixelC, color, &cMesh->texture);
         }
