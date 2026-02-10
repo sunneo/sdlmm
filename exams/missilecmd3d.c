@@ -103,7 +103,12 @@ static Mesh ourMissileSphere;
 static void generate_glow_texture(Texture* tex, int baseColor) {
     int size = 16;
     int* buf = (int*)malloc(sizeof(int) * size * size);
-    if (!buf) return;
+    if (!buf) {
+        tex->internalBuffer = NULL;
+        tex->width = 0;
+        tex->height = 0;
+        return;
+    }
     tex->width = size;
     tex->height = size;
     tex->internalBuffer = buf;

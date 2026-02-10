@@ -69,10 +69,10 @@ static Camera camera;
 static Mesh* bodyMeshes = NULL;  /* array of meshes, one per body */
 static int meshCount = 0;
 
-/* Glow colors for body textures */
+/* Glow colors for body textures - yellow/golden like NVIDIA nbody demo */
 static const int glowColors[] = {
-    0xff4040, 0x40ff40, 0x4040ff, 0xff8020, 0xffff40,
-    0xff40ff, 0x40ffff, 0xff6060, 0x60ff60, 0x6060ff
+    0xffc020, 0xffe040, 0xffb010, 0xffd830, 0xffa000,
+    0xffe060, 0xff9010, 0xffc840, 0xffb830, 0xffd050
 };
 #define NUM_GLOW_COLORS 10
 
