@@ -1014,7 +1014,7 @@ void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int me
     int index;
     Vector3 up = vector3_up();
     Matrix viewMatrix=matrix_LookAtLH(&camera->Position,&camera->Target,&up);
-    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1.0);
+    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1000.0);
     
     // Use default light if none provided
     Vector3 defaultLight = vector3(0, 10, 10);

@@ -865,7 +865,7 @@ static void device_render(Device* dev, const Camera* camera, const Mesh* meshes,
     int index;
     Vector3 up = vector3_up();
     Matrix viewMatrix=matrix_LookAtLH(&camera->Position,&camera->Target,&up);
-    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1.0);            
+    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78,dev->workingWidth / dev->workingHeight, 0.01, 1000.0);            
     for(index = 0; index < meshesLength; index++) {
         int indexVertices;
         const Mesh* cMesh = &meshes[index];

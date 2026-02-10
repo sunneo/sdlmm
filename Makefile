@@ -30,5 +30,8 @@ nbody3d: exams/nbody3d.c sdlmm.c babylon3D.c
 missilecmd3d: exams/missilecmd3d.c sdlmm.c babylon3D.c
 	gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I../ -msse2 exams/missilecmd3d.c ./sdlmm.c -lSDL -lm -lpthread -lSDL_ttf -lSDL_image -lfreetype -fopenmp -o missilecmd3d
 
+missilecmd: exams/missilecmd.c sdlmm.c
+	gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I./ -msse2 exams/missilecmd.c ./sdlmm.c -lSDL -lm -lpthread -lSDL_ttf -lSDL_image -lfreetype -fopenmp -o missilecmd
+
 clean:
-	rm -f *.o test test_scene_json scene_viewer babylon3D_cube nbody3d missilecmd3d test_2d_scene.json test_3d_scene.json
+	rm -f *.o test test_scene_json scene_viewer babylon3D_cube nbody3d missilecmd3d missilecmd test_2d_scene.json test_3d_scene.json
