@@ -135,13 +135,24 @@ static void createDebugCube() {
     debugCubeMesh->faces[9].A=17;debugCubeMesh->faces[9].B=19;debugCubeMesh->faces[9].C=18;
     debugCubeMesh->faces[10].A=20;debugCubeMesh->faces[10].B=21;debugCubeMesh->faces[10].C=22;
     debugCubeMesh->faces[11].A=21;debugCubeMesh->faces[11].B=23;debugCubeMesh->faces[11].C=22;
-    /* Position at center of scene (camera target) */
-    debugCubeMesh->Position = vector3(0, 0, 15);
+    /* Position at (0,0,10) - same as babylon3D_cube */
+    debugCubeMesh->Position = vector3(0, 0, 10);
     debugCubeMesh->Rotation = vector3_zero();
-    /* No texture - white color */
-    debugCubeMesh->texture.internalBuffer = NULL;
-    debugCubeMesh->texture.width = 0;
-    debugCubeMesh->texture.height = 0;
+    /* Load texture - same as babylon3D_cube */
+    {
+        Texture* loadedTexture = texture_load("texture.png");
+        if(loadedTexture && loadedTexture->internalBuffer) {
+            debugCubeMesh->texture = *loadedTexture;
+            free(loadedTexture);
+            fprintf(stderr, "Debug cube: texture.png loaded OK\n");
+        } else {
+            if(loadedTexture) free(loadedTexture);
+            fprintf(stderr, "Debug cube: WARNING texture.png not found\n");
+            debugCubeMesh->texture.internalBuffer = NULL;
+            debugCubeMesh->texture.width = 0;
+            debugCubeMesh->texture.height = 0;
+        }
+    }
 }
 
 #ifdef __linux__
@@ -358,12 +369,15 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
     /* Light from above-right */
     lightPos = vector3(10, 20, -5);
 
-    /* Render debug cube first (same as babylon3D_cube) */
+    /* Render debug cube using babylon3D_cube's exact camera setup */
     if (debugCubeMesh) {
+        Camera debugCam;
+        debugCam.Position = vector3(0, 0, -10);
+        debugCam.Target = vector3(0, 0, 0);
         debugCubeRotX += 0.01f;
         debugCubeRotY += 0.01f;
         debugCubeMesh->Rotation = vector3(debugCubeRotX, debugCubeRotY, 0);
-        device_render(m_device, &camera, debugCubeMesh, 1, &lightPos);
+        device_render(m_device, &debugCam, debugCubeMesh, 1, NULL);
     }
 
     /* Render all body meshes */
