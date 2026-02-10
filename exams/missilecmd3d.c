@@ -100,88 +100,41 @@ static Mesh missileSphere;
 static Mesh ourExplSphere;
 static Mesh ourMissileSphere;
 
-/* Debug cube (same as babylon3D_cube) to verify rendering pipeline */
-static Mesh* debugCubeMesh = NULL;
-static float debugCubeRotX = 0, debugCubeRotY = 0;
-
-static void createDebugCube() {
-    int i;
-    debugCubeMesh = softengine_mesh("DebugCube", 24, 12);
-    if(!debugCubeMesh) return;
-    /* Front face (Z = 1) */
-    debugCubeMesh->Vertices[0].Coordinates = vector3(-1, 1, 1);
-    debugCubeMesh->Vertices[1].Coordinates = vector3(1, 1, 1);
-    debugCubeMesh->Vertices[2].Coordinates = vector3(-1, -1, 1);
-    debugCubeMesh->Vertices[3].Coordinates = vector3(1, -1, 1);
-    /* Back face (Z = -1) */
-    debugCubeMesh->Vertices[4].Coordinates = vector3(1, 1, -1);
-    debugCubeMesh->Vertices[5].Coordinates = vector3(-1, 1, -1);
-    debugCubeMesh->Vertices[6].Coordinates = vector3(1, -1, -1);
-    debugCubeMesh->Vertices[7].Coordinates = vector3(-1, -1, -1);
-    /* Top face (Y = 1) */
-    debugCubeMesh->Vertices[8].Coordinates = vector3(-1, 1, -1);
-    debugCubeMesh->Vertices[9].Coordinates = vector3(1, 1, -1);
-    debugCubeMesh->Vertices[10].Coordinates = vector3(-1, 1, 1);
-    debugCubeMesh->Vertices[11].Coordinates = vector3(1, 1, 1);
-    /* Bottom face (Y = -1) */
-    debugCubeMesh->Vertices[12].Coordinates = vector3(-1, -1, 1);
-    debugCubeMesh->Vertices[13].Coordinates = vector3(1, -1, 1);
-    debugCubeMesh->Vertices[14].Coordinates = vector3(-1, -1, -1);
-    debugCubeMesh->Vertices[15].Coordinates = vector3(1, -1, -1);
-    /* Left face (X = -1) */
-    debugCubeMesh->Vertices[16].Coordinates = vector3(-1, 1, -1);
-    debugCubeMesh->Vertices[17].Coordinates = vector3(-1, 1, 1);
-    debugCubeMesh->Vertices[18].Coordinates = vector3(-1, -1, -1);
-    debugCubeMesh->Vertices[19].Coordinates = vector3(-1, -1, 1);
-    /* Right face (X = 1) */
-    debugCubeMesh->Vertices[20].Coordinates = vector3(1, 1, 1);
-    debugCubeMesh->Vertices[21].Coordinates = vector3(1, 1, -1);
-    debugCubeMesh->Vertices[22].Coordinates = vector3(1, -1, 1);
-    debugCubeMesh->Vertices[23].Coordinates = vector3(1, -1, -1);
-    /* Normals */
-    for(i = 0; i < 4; i++) debugCubeMesh->Vertices[i].Normal = vector3(0, 0, 1);
-    for(i = 4; i < 8; i++) debugCubeMesh->Vertices[i].Normal = vector3(0, 0, -1);
-    for(i = 8; i < 12; i++) debugCubeMesh->Vertices[i].Normal = vector3(0, 1, 0);
-    for(i = 12; i < 16; i++) debugCubeMesh->Vertices[i].Normal = vector3(0, -1, 0);
-    for(i = 16; i < 20; i++) debugCubeMesh->Vertices[i].Normal = vector3(-1, 0, 0);
-    for(i = 20; i < 24; i++) debugCubeMesh->Vertices[i].Normal = vector3(1, 0, 0);
-    for(i = 0; i < 24; i++) debugCubeMesh->Vertices[i].WorldCoordinates = vector3_zero();
-    for(i = 0; i < 6; i++) {
-        int base = i * 4;
-        debugCubeMesh->Vertices[base + 0].TextureCoordinates = vector3(0, 0, 0);
-        debugCubeMesh->Vertices[base + 1].TextureCoordinates = vector3(1, 0, 0);
-        debugCubeMesh->Vertices[base + 2].TextureCoordinates = vector3(0, 1, 0);
-        debugCubeMesh->Vertices[base + 3].TextureCoordinates = vector3(1, 1, 0);
-    }
-    /* Faces */
-    debugCubeMesh->faces[0].A=0;debugCubeMesh->faces[0].B=1;debugCubeMesh->faces[0].C=2;
-    debugCubeMesh->faces[1].A=1;debugCubeMesh->faces[1].B=3;debugCubeMesh->faces[1].C=2;
-    debugCubeMesh->faces[2].A=4;debugCubeMesh->faces[2].B=5;debugCubeMesh->faces[2].C=6;
-    debugCubeMesh->faces[3].A=5;debugCubeMesh->faces[3].B=7;debugCubeMesh->faces[3].C=6;
-    debugCubeMesh->faces[4].A=8;debugCubeMesh->faces[4].B=9;debugCubeMesh->faces[4].C=10;
-    debugCubeMesh->faces[5].A=9;debugCubeMesh->faces[5].B=11;debugCubeMesh->faces[5].C=10;
-    debugCubeMesh->faces[6].A=12;debugCubeMesh->faces[6].B=13;debugCubeMesh->faces[6].C=14;
-    debugCubeMesh->faces[7].A=13;debugCubeMesh->faces[7].B=15;debugCubeMesh->faces[7].C=14;
-    debugCubeMesh->faces[8].A=16;debugCubeMesh->faces[8].B=17;debugCubeMesh->faces[8].C=18;
-    debugCubeMesh->faces[9].A=17;debugCubeMesh->faces[9].B=19;debugCubeMesh->faces[9].C=18;
-    debugCubeMesh->faces[10].A=20;debugCubeMesh->faces[10].B=21;debugCubeMesh->faces[10].C=22;
-    debugCubeMesh->faces[11].A=21;debugCubeMesh->faces[11].B=23;debugCubeMesh->faces[11].C=22;
-    /* Position at (0,0,10) - same as babylon3D_cube */
-    debugCubeMesh->Position = vector3(0, 0, 10);
-    debugCubeMesh->Rotation = vector3_zero();
-    /* Load texture - same as babylon3D_cube */
-    {
-        Texture* loadedTexture = texture_load("texture.png");
-        if(loadedTexture && loadedTexture->internalBuffer) {
-            debugCubeMesh->texture = *loadedTexture;
-            free(loadedTexture);
-            fprintf(stderr, "Debug cube: texture.png loaded OK\n");
-        } else {
-            if(loadedTexture) free(loadedTexture);
-            fprintf(stderr, "Debug cube: WARNING texture.png not found\n");
-            debugCubeMesh->texture.internalBuffer = NULL;
-            debugCubeMesh->texture.width = 0;
-            debugCubeMesh->texture.height = 0;
+static void generate_glow_texture(Texture* tex, int baseColor) {
+    int size = 16;
+    int* buf = (int*)malloc(sizeof(int) * size * size);
+    if (!buf) return;
+    tex->width = size;
+    tex->height = size;
+    tex->internalBuffer = buf;
+    int br = (baseColor >> 16) & 0xff;
+    int bg = (baseColor >> 8) & 0xff;
+    int bb = baseColor & 0xff;
+    float cx = size / 2.0f, cy = size / 2.0f;
+    float maxR = size / 2.0f;
+    int x, y;
+    for (y = 0; y < size; y++) {
+        for (x = 0; x < size; x++) {
+            float dx = x - cx, dy = y - cy;
+            float dist = sqrtf(dx*dx + dy*dy) / maxR;
+            if (dist > 1.0f) dist = 1.0f;
+            int r, g, b;
+            if (dist < 0.3f) {
+                float t = dist / 0.3f;
+                r = 255 - (int)((255 - br) * t);
+                g = 255 - (int)((255 - bg) * t);
+                b = 255 - (int)((255 - bb) * t);
+            } else {
+                float t = (dist - 0.3f) / 0.7f;
+                float intensity = 1.0f - t * t;
+                r = (int)(br * intensity);
+                g = (int)(bg * intensity);
+                b = (int)(bb * intensity);
+            }
+            if (r > 255) r = 255; if (r < 0) r = 0;
+            if (g > 255) g = 255; if (g < 0) g = 0;
+            if (b > 255) b = 255; if (b < 0) b = 0;
+            buf[y * size + x] = (r << 16) | (g << 8) | b;
         }
     }
 }
@@ -331,10 +284,15 @@ static Mesh meshAt(const Mesh* tpl, Vector3 pos) {
 /* --- Initialize all scene template meshes --- */
 static void init_scene_meshes() {
     fill_cube(&groundMesh, WORLD_WIDTH + 4, 0.3f, WORLD_DEPTH + 4);
+    generate_glow_texture(&groundMesh.texture, 0x403020);
     fill_sphere(&explSphere, 1.0f, SPH_SEG, SPH_RING);
+    generate_glow_texture(&explSphere.texture, 0xff4010);
     fill_sphere(&missileSphere, 0.2f, 4, 3);
+    generate_glow_texture(&missileSphere.texture, 0x40ff40);
     fill_sphere(&ourExplSphere, 0.8f, SPH_SEG, SPH_RING);
+    generate_glow_texture(&ourExplSphere.texture, 0x40c0ff);
     fill_sphere(&ourMissileSphere, 0.15f, 4, 3);
+    generate_glow_texture(&ourMissileSphere.texture, 0xe0e0ff);
 }
 
 /* --- Initialize buildings --- */
@@ -587,15 +545,19 @@ static void drawScene() {
     /* Render all meshes */
     device_clear(m_device);
 
-    /* Render debug cube using babylon3D_cube's exact camera setup */
-    if (debugCubeMesh) {
-        Camera debugCam;
-        debugCam.Position = vector3(0, 0, -10);
-        debugCam.Target = vector3(0, 0, 0);
-        debugCubeRotX += 0.01f;
-        debugCubeRotY += 0.01f;
-        debugCubeMesh->Rotation = vector3(debugCubeRotX, debugCubeRotY, 0);
-        device_render(m_device, &debugCam, debugCubeMesh, 1, NULL);
+    /* Purple gradient sky background */
+    {
+        int bx, by;
+        for (by = 0; by < SCREENY; by++) {
+            float t = (float)by / SCREENY;
+            int r = (int)(20 + t * 40);
+            int g = (int)(0 + t * 15);
+            int b = (int)(60 + t * 50);
+            int color = (r << 16) | (g << 8) | b;
+            for (bx = 0; bx < SCREENX; bx++) {
+                m_device->backbuffer[by * SCREENX + bx] = color;
+            }
+        }
     }
 
     device_render(m_device, &camera, renderMeshes, renderMeshCount, &lightPos);
@@ -651,12 +613,12 @@ static void onkey(int k, int ctrl, int on) {
 static void freeMeshInternals(Mesh* m) {
     if (m->Vertices) { free(m->Vertices); m->Vertices = NULL; }
     if (m->faces) { free(m->faces); m->faces = NULL; }
+    if (m->texture.internalBuffer) { free(m->texture.internalBuffer); m->texture.internalBuffer = NULL; }
 }
 
 /* --- Cleanup --- */
 static void cleanup() {
     if (m_device) { device_free(m_device); m_device = NULL; }
-    if (debugCubeMesh) { mesh_free(debugCubeMesh); debugCubeMesh = NULL; }
     freeMeshInternals(&buildingMesh);
     freeMeshInternals(&destroyedMesh);
     freeMeshInternals(&launcherMesh);
@@ -689,12 +651,12 @@ int main(int argc, char** argv) {
 
     /* Create template meshes */
     fill_cube(&buildingMesh, 1.5f, 2.0f, 1.5f);      /* Alive building */
+    generate_glow_texture(&buildingMesh.texture, 0x6080a0);
     fill_cube(&destroyedMesh, 1.5f, 0.5f, 1.5f);     /* Destroyed building (short) */
+    generate_glow_texture(&destroyedMesh.texture, 0x804020);
     fill_cube(&launcherMesh, 1.0f, 1.2f, 1.0f);       /* Launcher (smaller) */
+    generate_glow_texture(&launcherMesh.texture, 0x60a060);
     init_scene_meshes();
-
-    /* Create debug cube (same as babylon3D_cube) for testing */
-    createDebugCube();
 
     /* Initialize game */
     init_builds();
