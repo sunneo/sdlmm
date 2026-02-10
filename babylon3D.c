@@ -832,7 +832,7 @@ void device_processScanLine(Device* dev,const DrawData* data,const Vertex* va,co
 
         int textureColor;
 
-        if (texture){
+        if (texture && texture->internalBuffer){
             textureColor = texture_map(texture,u, v); 
         }
         else {
