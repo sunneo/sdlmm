@@ -754,7 +754,7 @@ Vertex device_project(const Device* dev,const Vertex* vertex,const Matrix* trans
     ret.Coordinates.x=x;
     ret.Coordinates.y=y;
     ret.Coordinates.z=point2d.z;
-    ret.Normal = vector3_transform_coordinates(&vertex->Normal, world);
+    ret.Normal = vector3_transform_normal(&vertex->Normal, world);
     //point3DWorld
     ret.WorldCoordinates=vector3_transform_coordinates(&vertex->Coordinates,world);
     ret.TextureCoordinates = vertex->TextureCoordinates;
