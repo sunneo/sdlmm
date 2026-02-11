@@ -1169,6 +1169,9 @@ void device_render_particles(Device* dev, const Camera* camera, const Vector3* p
         
         device_draw_point_sprite(dev, &screenPos, finalSize, spriteTexture, particleColor, additive);
     }
+    
+    // Present the backbuffer to screen (copy backbuffer to screen buffer)
+    device_present(dev);
 }
 
 void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength, const Vector3* lightPosition){

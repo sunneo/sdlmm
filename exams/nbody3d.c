@@ -65,6 +65,8 @@ static Camera camera;
 static Texture* particleTexture = NULL;  /* Gaussian texture for particles */
 static Vector3* particlePositions = NULL;  /* World positions for particles */
 static int* particleColors = NULL;  /* Colors for each particle */
+static Mesh* debugCube = NULL;  /* Debug cube to verify rendering */
+static int showDebugCube = 1;  /* Toggle for debug cube visibility */
 
 /* Glow colors for particles - cyan/turquoise/white like NVIDIA nbody demo */
 static const int glowColors[] = {
@@ -152,6 +154,66 @@ static void Nbody(int i, int sz) {
     X_Velocity[i] = newX_velocity[i];
     Y_Velocity[i] = newY_velocity[i];
     Z_Velocity[i] = newZ_velocity[i];
+}
+
+/**
+ * Create a simple debug cube for visual confirmation
+ */
+static void initDebugCube() {
+    debugCube = softengine_mesh("DebugCube", 8, 12);
+    if (!debugCube) return;
+    
+    // Simple cube vertices
+    debugCube->Vertices[0].Coordinates = vector3(-2, -2, -2);
+    debugCube->Vertices[1].Coordinates = vector3(2, -2, -2);
+    debugCube->Vertices[2].Coordinates = vector3(2, 2, -2);
+    debugCube->Vertices[3].Coordinates = vector3(-2, 2, -2);
+    debugCube->Vertices[4].Coordinates = vector3(-2, -2, 2);
+    debugCube->Vertices[5].Coordinates = vector3(2, -2, 2);
+    debugCube->Vertices[6].Coordinates = vector3(2, 2, 2);
+    debugCube->Vertices[7].Coordinates = vector3(-2, 2, 2);
+    
+    // Set normals (simple outward normals)
+    for (int i = 0; i < 8; i++) {
+        Vector3 n = debugCube->Vertices[i].Coordinates;
+        vector3_normalize(&n);
+        debugCube->Vertices[i].Normal = n;
+        debugCube->Vertices[i].WorldCoordinates = vector3_zero();
+        debugCube->Vertices[i].TextureCoordinates = vector3_zero();
+    }
+    
+    // 12 faces (2 per side)
+    // Front face
+    debugCube->faces[0].A = 0; debugCube->faces[0].B = 1; debugCube->faces[0].C = 2;
+    debugCube->faces[1].A = 0; debugCube->faces[1].B = 2; debugCube->faces[1].C = 3;
+    // Back face
+    debugCube->faces[2].A = 5; debugCube->faces[2].B = 4; debugCube->faces[2].C = 7;
+    debugCube->faces[3].A = 5; debugCube->faces[3].B = 7; debugCube->faces[3].C = 6;
+    // Top face
+    debugCube->faces[4].A = 3; debugCube->faces[4].B = 2; debugCube->faces[4].C = 6;
+    debugCube->faces[5].A = 3; debugCube->faces[5].B = 6; debugCube->faces[5].C = 7;
+    // Bottom face
+    debugCube->faces[6].A = 4; debugCube->faces[6].B = 5; debugCube->faces[6].C = 1;
+    debugCube->faces[7].A = 4; debugCube->faces[7].B = 1; debugCube->faces[7].C = 0;
+    // Left face
+    debugCube->faces[8].A = 4; debugCube->faces[8].B = 0; debugCube->faces[8].C = 3;
+    debugCube->faces[9].A = 4; debugCube->faces[9].B = 3; debugCube->faces[9].C = 7;
+    // Right face
+    debugCube->faces[10].A = 1; debugCube->faces[10].B = 5; debugCube->faces[10].C = 6;
+    debugCube->faces[11].A = 1; debugCube->faces[11].B = 6; debugCube->faces[11].C = 2;
+    
+    debugCube->Position = vector3(0, 0, 0);  // At origin
+    debugCube->Rotation = vector3_zero();
+    debugCube->texture.internalBuffer = NULL;
+    debugCube->texture.width = 0;
+    debugCube->texture.height = 0;
+}
+
+static void freeDebugCube() {
+    if (debugCube) {
+        mesh_free(debugCube);
+        debugCube = NULL;
+    }
 }
 
 /**
@@ -243,6 +305,12 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
     /* Clear device to black */
     device_clear(m_device);
 
+    /* Render debug cube if enabled (for visual confirmation) */
+    if (showDebugCube && debugCube) {
+        Vector3 lightPos = vector3(10, 10, -10);
+        device_render(m_device, &camera, debugCube, 1, &lightPos);
+    }
+
     /* Render all particles with additive blending */
     device_render_particles(m_device, &camera, particlePositions, particleColors, 
                            SZ, 15.0f, particleTexture, 1);  /* 1 = additive blending */
@@ -257,7 +325,9 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
         drawtext(buf, 5, 45, 0xffffff);
         sprintf(buf, "cam dist:%.1f angle:(%.2f,%.2f)", camDist, camAngleX, camAngleY);
         drawtext(buf, 5, 65, 0xffffff);
-        drawtext("[h]help [+/-]zoom [arrows]rotate", 5, 85, 0xaaaaaa);
+        sprintf(buf, "debug cube: %s[d]", showDebugCube ? "on" : "off");
+        drawtext(buf, 5, 85, 0xffffff);
+        drawtext("[h]help [+/-]zoom [arrows]rotate [d]cube", 5, 105, 0xaaaaaa);
     }
 
     flushscreen();
@@ -313,6 +383,7 @@ static void kbfnc(int k, int ctrl, int on) {
             case 'c': case 'C': centralize = !centralize; break;
             case 'r': case 'R': random_simulatefactor = !random_simulatefactor; break;
             case 'h': case 'H': showhelp = !showhelp; break;
+            case 'd': case 'D': showDebugCube = !showDebugCube; break;  /* Toggle debug cube */
             case '+': case '=': if (camDist > 5.0f) camDist -= 3.0f; break;
             case '-': case '_': camDist += 3.0f; break;
         }
@@ -377,12 +448,16 @@ int main(int argc, char** argv) {
 
     /* Create particle rendering structures */
     initParticles();
+    
+    /* Create debug cube for visual confirmation */
+    initDebugCube();
 
     for (i = 0; i < 20; ++i) {
         main_run(argc, argv);
     }
 
     freeParticles();
+    freeDebugCube();
     device_free(m_device);
     freeBody(X_axis);
     freeBody(Y_axis);
