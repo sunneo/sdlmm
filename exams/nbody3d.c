@@ -3,14 +3,22 @@
  *
  * Renders gravitational bodies as 3D spheres in a true 3D scene
  * with camera controls and real-time physics simulation.
+ * Based on NVIDIA CUDA nbody sample with softening parameter.
+ *
+ * Physics Algorithm:
+ *   Uses NVIDIA nbody sample algorithm with softening parameter to prevent
+ *   numerical instabilities when particles get very close:
+ *   F = G * m_i * m_j * r / (r^2 + epsilon^2)^(3/2)
  *
  * Controls:
  *   0-3 : Change display mode (wireframe/solid/mixed)
- *   c/C : Toggle centralize view
+ *   C   : Toggle camera center tracking (with smooth transition)
  *   r/R : Toggle random simulation factor
  *   h/H : Toggle help overlay
  *   +/- : Zoom camera in/out
  *   Arrow keys: Rotate camera
+ *   Mouse drag: Rotate camera (like NVIDIA sample)
+ *   Mouse sliders: Adjust simulation speed and particle size
  *
  * Compile:
  *   gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I../ -msse2 \
@@ -40,18 +48,49 @@
 #define MAX_Mass 150
 #define MIN_Mass 3
 #define Gravity_Coef 3.3f
+#define SOFTENING 0.01f  /* Softening parameter (epsilon) to prevent singularities - NVIDIA nbody sample */
+#define SOFTENING_SQUARED (SOFTENING * SOFTENING)
+
+/* UI slider constants */
+#define SLIDER_X_START 320
+#define SLIDER_WIDTH 400
+#define SLIDER_SIM_Y 25
+#define SLIDER_SIM_HEIGHT 15
+#define SLIDER_PARTICLE_Y 65
+#define SLIDER_PARTICLE_HEIGHT 15
+
+/* Particle size range */
+#define PARTICLE_SIZE_MIN 5.0f
+#define PARTICLE_SIZE_MAX 40.0f
+#define PARTICLE_SIZE_DEFAULT 15.0f
+
+/* Mouse control constants */
+#define MOUSE_ROTATION_SENSITIVITY 0.005f
+#define CAM_ANGLE_X_MAX 1.5f
+#define CAM_ANGLE_X_MIN -1.5f
 
 /* Global state */
 static int showhelp = 1;
 static int showmode = 3;
 static float simulatetime_factor = 0.01f;
 static int random_simulatefactor = 1;
-static int centralize = 0;
 static int SZ = NUM_BODY;
 /* Camera */
 static float camDist = 50.0f;
 static float camAngleX = 0.3f;
 static float camAngleY = 0.0f;
+/* Camera tracking */
+static int camera_tracking = 0;  /* Toggle camera center tracking */
+static float target_cam_angle_x = 0.3f;  /* Target angles for smooth transition */
+static float target_cam_angle_y = 0.0f;
+static float target_cam_dist = 50.0f;
+static const float cam_transition_speed = 0.1f;  /* Speed of camera transitions */
+/* Mouse control */
+static int mouse_down = 0;
+static int last_mouse_x = 0;
+static int last_mouse_y = 0;
+/* Particle size control */
+static float particle_size = PARTICLE_SIZE_DEFAULT;  /* Default particle size */
 
 /* Physics arrays */
 static float *X_axis, *Y_axis, *Z_axis;
@@ -128,30 +167,50 @@ static void Init_AllBody() {
     }
 }
 
-/* N-body gravitational calculation for body i */
+/* N-body gravitational calculation for body i 
+ * Uses softening parameter to match NVIDIA CUDA nbody sample algorithm
+ * Force = G * m_i * m_j * r / (r^2 + epsilon^2)^(3/2)
+ */
 static void Nbody(int i, int sz) {
     int j;
     float sumX = 0, sumY = 0, sumZ = 0;
     for (j = 0; j < sz; j++) {
         float X_position, Y_position, Z_position;
-        float Distance, Force;
+        float distSqr, invDist, invDistCube, s;
         if (j == i) continue;
+        
+        /* Calculate position difference vector */
         X_position = X_axis[j] - X_axis[i];
         Y_position = Y_axis[j] - Y_axis[i];
         Z_position = Z_axis[j] - Z_axis[i];
-        Distance = sqrtf(X_position * X_position + Y_position * Y_position + Z_position * Z_position);
-        if (Distance == 0) continue;
-        Force = Gravity_Coef * Mass[i] / (Distance * Distance);
-        sumX += Force * X_position;
-        sumY += Force * Y_position;
-        sumZ += Force * Z_position;
+        
+        /* Distance squared with softening (prevents singularities) */
+        distSqr = X_position * X_position + Y_position * Y_position + Z_position * Z_position + SOFTENING_SQUARED;
+        
+        /* Inverse distance and inverse distance cubed */
+        invDist = 1.0f / sqrtf(distSqr);
+        invDistCube = invDist * invDist * invDist;
+        
+        /* Force factor: G * m_j * invDistCube */
+        s = Gravity_Coef * Mass[j] * invDistCube;
+        
+        /* Accumulate force components */
+        sumX += s * X_position;
+        sumY += s * Y_position;
+        sumZ += s * Z_position;
     }
+    
+    /* Update velocities */
     newX_velocity[i] += sumX * simulatetime_factor;
     newY_velocity[i] += sumY * simulatetime_factor;
     newZ_velocity[i] += sumZ * simulatetime_factor;
+    
+    /* Update positions with clamped velocities */
     X_axis[i] += clampf(newX_velocity[i], MIN_velocity, MAX_Velocity) * simulatetime_factor;
     Y_axis[i] += clampf(newY_velocity[i], MIN_velocity, MAX_Velocity) * simulatetime_factor;
     Z_axis[i] += clampf(newZ_velocity[i], MIN_velocity, MAX_Velocity) * simulatetime_factor;
+    
+    /* Store final velocities */
     X_Velocity[i] = newX_velocity[i];
     Y_Velocity[i] = newY_velocity[i];
     Z_Velocity[i] = newZ_velocity[i];
@@ -256,12 +315,17 @@ static void freeParticles() {
 /**
  * Update particle positions from physics simulation.
  * Maps simulation coordinates to 3D world space.
+ * When camera tracking is enabled, centers particles around their center of mass.
  */
 static void updateParticlePositions(float avgX, float avgY, float avgZ) {
     int i;
     float scale = 0.1f;  /* Scale factor for world coordinates */
+    
+    /* When camera tracking is enabled, centralize particles around center of mass */
+    int should_centralize = camera_tracking;
+    
     for (i = 0; i < SZ; i++) {
-        if (centralize) {
+        if (should_centralize) {
             particlePositions[i] = vector3(
                 (X_axis[i] - avgX) * scale,
                 (Y_axis[i] - avgY) * scale,
@@ -279,8 +343,22 @@ static void updateParticlePositions(float avgX, float avgY, float avgZ) {
 
 /**
  * Update camera position based on angles and distance.
+ * Smoothly transitions camera angles and distance when tracking is enabled.
  */
 static void updateCamera() {
+    /* Smooth camera transition */
+    if (camera_tracking) {
+        /* Gradually move towards target angles */
+        camAngleX += (target_cam_angle_x - camAngleX) * cam_transition_speed;
+        camAngleY += (target_cam_angle_y - camAngleY) * cam_transition_speed;
+        camDist += (target_cam_dist - camDist) * cam_transition_speed;
+    } else {
+        /* Update targets to match current position when not tracking */
+        target_cam_angle_x = camAngleX;
+        target_cam_angle_y = camAngleY;
+        target_cam_dist = camDist;
+    }
+    
     camera.Position = vector3(
         camDist * sinf(camAngleY) * cosf(camAngleX),
         camDist * sinf(camAngleX),
@@ -315,7 +393,7 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
 
     /* Render all particles with additive blending */
     device_render_particles(m_device, &camera, particlePositions, particleColors, 
-                           SZ, 15.0f, particleTexture, 1);  /* 1 = additive blending */
+                           SZ, particle_size, particleTexture, 1);  /* 1 = additive blending */
 
     /* Draw HUD overlay */
     if (showhelp) {
@@ -325,13 +403,25 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
         drawtext(buf, 5, 25, 0xffffff);
         sprintf(buf, "random factor: %s[r]", random_simulatefactor ? "on" : "off");
         drawtext(buf, 5, 45, 0xffffff);
-        sprintf(buf, "cam dist:%.1f angle:(%.2f,%.2f)", camDist, camAngleX, camAngleY);
+        /* Draw simulation factor slider */
+        fillrect(SLIDER_X_START, SLIDER_SIM_Y, SLIDER_WIDTH * (simulatetime_factor / 2.0f), SLIDER_SIM_HEIGHT, 0xfdfd00);
+        drawrect(SLIDER_X_START, SLIDER_SIM_Y, SLIDER_WIDTH, SLIDER_SIM_HEIGHT, 0xffffff);
+        
+        sprintf(buf, "particle size: %-3.1f", particle_size);
         drawtext(buf, 5, 65, 0xffffff);
+        /* Draw particle size slider */
+        fillrect(SLIDER_X_START, SLIDER_PARTICLE_Y, SLIDER_WIDTH * ((particle_size - PARTICLE_SIZE_MIN) / (PARTICLE_SIZE_MAX - PARTICLE_SIZE_MIN)), SLIDER_PARTICLE_HEIGHT, 0x00ff00);
+        drawrect(SLIDER_X_START, SLIDER_PARTICLE_Y, SLIDER_WIDTH, SLIDER_PARTICLE_HEIGHT, 0xffffff);
+        
+        sprintf(buf, "cam dist:%.1f angle:(%.2f,%.2f)", camDist, camAngleX, camAngleY);
+        drawtext(buf, 5, 85, 0xffffff);
+        sprintf(buf, "camera tracking: %s[C]", camera_tracking ? "on" : "off");
+        drawtext(buf, 5, 105, 0xffffff);
 	if(hasDebugCube){
            sprintf(buf, "debug cube: %s[d]", showDebugCube ? "on" : "off");
-           drawtext(buf, 5, 85, 0xffffff);
+           drawtext(buf, 5, 125, 0xffffff);
         }
-        drawtext("[h]help [+/-]zoom [arrows]rotate [d]cube", 5, 105, 0xaaaaaa);
+        drawtext("[h]help [+/-]zoom [arrows/mouse]rotate [C]track", 5, 145, 0xaaaaaa);
     }
 
     flushscreen();
@@ -384,32 +474,113 @@ static void kbfnc(int k, int ctrl, int on) {
         switch (k) {
             case '0': case '1': case '2': case '3':
                 showmode = k - '0'; break;
-            case 'c': case 'C': centralize = !centralize; break;
+            case 'c': case 'C': 
+                /* Toggle camera tracking mode */
+                camera_tracking = !camera_tracking;
+                if (camera_tracking) {
+                    /* Set target to center view (looking down slightly) */
+                    target_cam_angle_x = 0.3f;
+                    target_cam_angle_y = 0.0f;
+                    target_cam_dist = 50.0f;
+                }
+                break;
             case 'r': case 'R': random_simulatefactor = !random_simulatefactor; break;
             case 'h': case 'H': showhelp = !showhelp; break;
             case 'd': case 'D': showDebugCube = !showDebugCube; break;  /* Toggle debug cube */
-            case '+': case '=': if (camDist > 5.0f) camDist -= 3.0f; break;
-            case '-': case '_': camDist += 3.0f; break;
+            case '+': case '=': 
+                if (camDist > 5.0f) camDist -= 3.0f; 
+                camera_tracking = 0;  /* Disable tracking on manual control */
+                break;
+            case '-': case '_': 
+                camDist += 3.0f; 
+                camera_tracking = 0;  /* Disable tracking on manual control */
+                break;
         }
         /* Arrow keys - SDLK values */
-        if (k == 273) camAngleX += 0.1f;       /* Up */
-        else if (k == 274) camAngleX -= 0.1f;  /* Down */
-        else if (k == 276) camAngleY -= 0.1f;  /* Left */
-        else if (k == 275) camAngleY += 0.1f;  /* Right */
+        if (k == 273) {
+            camAngleX += 0.1f;       /* Up */
+            camera_tracking = 0;  /* Disable tracking on manual control */
+        }
+        else if (k == 274) {
+            camAngleX -= 0.1f;  /* Down */
+            camera_tracking = 0;  /* Disable tracking on manual control */
+        }
+        else if (k == 276) {
+            camAngleY -= 0.1f;  /* Left */
+            camera_tracking = 0;  /* Disable tracking on manual control */
+        }
+        else if (k == 275) {
+            camAngleY += 0.1f;  /* Right */
+            camera_tracking = 0;  /* Disable tracking on manual control */
+        }
     }
 }
 
-/* Mouse handler for slider */
+/* Mouse handler for sliders and camera rotation */
 static void mousefnc(int x, int y, int on, int btn) {
     if (on) {
-        if (y > 60 && y < 80 && x >= 320 && x <= 320 + 400) {
-            float value = 2.0f * ((float)(x - 320)) / 400;
-            simulatetime_factor = value;
+        /* Check for simulation factor slider */
+        if (y > SLIDER_SIM_Y && y < SLIDER_SIM_Y + SLIDER_SIM_HEIGHT && x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH) {
+            float value = 2.0f * ((float)(x - SLIDER_X_START)) / SLIDER_WIDTH;
+            if (value >= 0.0f && value <= 2.0f) {
+                simulatetime_factor = value;
+            }
         }
+        /* Check for particle size slider */
+        else if (y > SLIDER_PARTICLE_Y && y < SLIDER_PARTICLE_Y + SLIDER_PARTICLE_HEIGHT && x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH) {
+            float value = PARTICLE_SIZE_MIN + (PARTICLE_SIZE_MAX - PARTICLE_SIZE_MIN) * ((float)(x - SLIDER_X_START)) / SLIDER_WIDTH;
+            if (value >= PARTICLE_SIZE_MIN && value <= PARTICLE_SIZE_MAX) {
+                particle_size = value;
+            }
+        }
+        /* Camera rotation - mouse drag outside slider areas */
+        else {
+            if (!mouse_down) {
+                mouse_down = 1;
+                last_mouse_x = x;
+                last_mouse_y = y;
+            }
+        }
+    } else {
+        mouse_down = 0;
     }
 }
 
 static void mousemotion(int x, int y, int on) {
+    /* Handle mouse dragging for camera rotation */
+    if (mouse_down && on) {
+        int dx = x - last_mouse_x;
+        int dy = y - last_mouse_y;
+        
+        /* Only rotate if not clicking on sliders - check if in slider area */
+        int in_slider_area = 0;
+        /* Check simulation slider area */
+        if (y >= SLIDER_SIM_Y && y < SLIDER_SIM_Y + SLIDER_SIM_HEIGHT && 
+            x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH) {
+            in_slider_area = 1;
+        }
+        /* Check particle size slider area */
+        if (y >= SLIDER_PARTICLE_Y && y < SLIDER_PARTICLE_Y + SLIDER_PARTICLE_HEIGHT && 
+            x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH) {
+            in_slider_area = 1;
+        }
+        
+        if (!in_slider_area) {
+            /* Rotate camera based on mouse movement */
+            camAngleY += (float)dx * MOUSE_ROTATION_SENSITIVITY;  /* Horizontal rotation */
+            camAngleX -= (float)dy * MOUSE_ROTATION_SENSITIVITY;  /* Vertical rotation (inverted) */
+            
+            /* Clamp vertical angle to prevent flipping */
+            if (camAngleX > CAM_ANGLE_X_MAX) camAngleX = CAM_ANGLE_X_MAX;
+            if (camAngleX < CAM_ANGLE_X_MIN) camAngleX = CAM_ANGLE_X_MIN;
+            
+            camera_tracking = 0;  /* Disable tracking on manual control */
+        }
+        
+        last_mouse_x = x;
+        last_mouse_y = y;
+    }
+    /* Also handle slider dragging */
     mousefnc(x, y, on, 0);
 }
 
