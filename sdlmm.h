@@ -67,6 +67,7 @@ void setontouch(void (*fnc)(int x,int y,int on));
 void setonmotion(void (*fnc)(int x,int y,int on));
 void setonmouse(void(*fnc)(int x,int y,int on,int btn));
 void setonkey(void(*fnc)(int key,int ctrl,int on));
+void setonwheel(void(*fnc)(int delta));
 /////////////////////////////////////////////////////////
 
 int run_async(void (*fnc)(void*),void* param);

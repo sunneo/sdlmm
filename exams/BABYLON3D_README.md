@@ -2,6 +2,72 @@
 
 This directory contains examples demonstrating 3D rendering using the babylon3D library with sdlmm.
 
+## missilecmd3d.c
+
+A 3D version of the classic Missile Command game with advanced visual effects.
+
+### Recent Enhancements (2026-02)
+
+The game now features enhanced visual effects:
+
+1. **Fixed Camera with Mouse Wheel Zoom**
+   - Camera position is locked at a fixed viewing angle
+   - Use mouse wheel to zoom in/out (distance: 8-50 units)
+   - Provides stable viewing experience while maintaining gameplay flexibility
+
+2. **Transparent 3D Trajectory Lines**
+   - Enemy missiles display semi-transparent trajectory lines showing their flight path
+   - Lines are drawn from current position to target
+   - Fades along the trajectory for depth perception
+   - Uses 3D-to-2D projection for accurate screen rendering
+
+3. **Semi-Transparent Smoke Trail Effects**
+   - Our missiles leave a smoke trail as they travel
+   - Particles fade out gradually (alpha blending)
+   - Maximum 200 smoke particles system
+   - Spawned periodically during missile flight
+
+4. **N-Body Style Glowing Explosion Particles**
+   - Explosions spawn 50+ glowing particles
+   - Particles expand and fade like N-body simulations
+   - Cyan/turquoise/white glow colors
+   - Maximum 500 explosion particles system
+   - Uses additive blending for glow effects
+
+### Controls:
+- **Mouse Click**: Launch interceptor missile toward cursor position
+- **Mouse Wheel**: Zoom camera in/out
+- **h/H**: Toggle help overlay
+
+### How to compile:
+
+```bash
+make missilecmd3d
+# Or manually:
+gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I../ -msse2 \
+    missilecmd3d.c ../sdlmm.c -lSDL -lm -lpthread -lSDL_ttf -lSDL_image \
+    -lfreetype -fopenmp -o missilecmd3d
+```
+
+### Technical Implementation:
+
+**Particle Systems:**
+- Two separate particle systems: smoke (200 max) and explosions (500 max)
+- Each particle has position, velocity, color, life, and size
+- Particles update position and fade based on lifetime
+- Uses device_render_particles() for efficient batch rendering
+
+**Trajectory Lines:**
+- Computed in 3D space from missile position to target
+- Segmented into 20 parts for smooth curves
+- Projected to screen space using camera matrices
+- Alpha blending for transparency effect
+
+**Mouse Wheel Support:**
+- New event handler added to sdlmm library (setonwheel)
+- SDL 1.2 mouse wheel events (button 4=up, 5=down)
+- Smooth zoom with distance limits
+
 ## babylon3D_cube.c
 
 A simple example that demonstrates:
