@@ -97,6 +97,7 @@ static float *X_axis, *Y_axis, *Z_axis;
 static float *X_Velocity, *Y_Velocity, *Z_Velocity;
 static float *newX_velocity, *newY_velocity, *newZ_velocity;
 static float *Mass;
+static float *gravitationalPotential;  /* Gravitational potential for cluster tracking */
 
 /* 3D rendering */
 static Device* m_device = NULL;
@@ -170,10 +171,14 @@ static void Init_AllBody() {
 /* N-body gravitational calculation for body i 
  * Uses softening parameter to match NVIDIA CUDA nbody sample algorithm
  * Force = G * m_i * m_j * r / (r^2 + epsilon^2)^(3/2)
+ * 
+ * Also accumulates gravitational potential for cluster tracking optimization.
  */
 static void Nbody(int i, int sz) {
     int j;
     float sumX = 0, sumY = 0, sumZ = 0;
+    float potential = 0.0f;  /* Accumulate gravitational potential for this particle */
+    
     for (j = 0; j < sz; j++) {
         float X_position, Y_position, Z_position;
         float distSqr, invDist, invDistCube, s;
@@ -198,7 +203,14 @@ static void Nbody(int i, int sz) {
         sumX += s * X_position;
         sumY += s * Y_position;
         sumZ += s * Z_position;
+        
+        /* Accumulate gravitational potential: U = sum(m_j / r) */
+        /* This is calculated during force calculation to avoid extra traversal */
+        potential += Mass[j] * invDist;
     }
+    
+    /* Store gravitational potential for cluster tracking */
+    gravitationalPotential[i] = potential;
     
     /* Update velocities */
     newX_velocity[i] += sumX * simulatetime_factor;
@@ -433,6 +445,63 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
     }
 }
 
+/**
+ * Find the center of the cluster with the greatest gravitational pull.
+ * Uses pre-calculated gravitational potentials from Nbody calculations.
+ * This optimization avoids an extra O(n²) traversal.
+ * 
+ * Algorithm:
+ * 1. Find particle with highest gravitational potential (already calculated)
+ * 2. Calculate weighted center around that particle's vicinity
+ * 3. Weight by mass and proximity to favor dense cluster center
+ */
+static void findClusterCenter(float* centerX, float* centerY, float* centerZ) {
+    int i;
+    float maxPotential = -1e30f;
+    int maxPotentialIdx = 0;
+    
+    /* Find particle with highest gravitational potential */
+    /* This is O(n) since potentials were already calculated during Nbody */
+    for (i = 0; i < SZ; i++) {
+        if (gravitationalPotential[i] > maxPotential) {
+            maxPotential = gravitationalPotential[i];
+            maxPotentialIdx = i;
+        }
+    }
+    
+    /* Calculate weighted center around the densest region */
+    float sumX = 0, sumY = 0, sumZ = 0;
+    float totalWeight = 0;
+    float clusterRadius = 100.0f;  /* Radius to consider particles as part of cluster */
+    
+    for (i = 0; i < SZ; i++) {
+        float dx = X_axis[i] - X_axis[maxPotentialIdx];
+        float dy = Y_axis[i] - Y_axis[maxPotentialIdx];
+        float dz = Z_axis[i] - Z_axis[maxPotentialIdx];
+        float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+        
+        if (dist < clusterRadius) {
+            /* Weight by mass and inverse distance to favor closer, heavier particles */
+            float weight = Mass[i] / (dist + 1.0f);
+            sumX += X_axis[i] * weight;
+            sumY += Y_axis[i] * weight;
+            sumZ += Z_axis[i] * weight;
+            totalWeight += weight;
+        }
+    }
+    
+    if (totalWeight > 0) {
+        *centerX = sumX / totalWeight;
+        *centerY = sumY / totalWeight;
+        *centerZ = sumZ / totalWeight;
+    } else {
+        /* Fallback to the max potential particle position */
+        *centerX = X_axis[maxPotentialIdx];
+        *centerY = Y_axis[maxPotentialIdx];
+        *centerZ = Z_axis[maxPotentialIdx];
+    }
+}
+
 /* Main simulation loop */
 static int main_run(int argc, char** argv) {
     int loop;
@@ -449,14 +518,12 @@ static int main_run(int argc, char** argv) {
         for (i = 0; i < SZ; i++) {
             Nbody(i, SZ);
         }
-        for (i = 0; i < SZ; i++) {
-            avgX += X_axis[i];
-            avgY += Y_axis[i];
-            avgZ += Z_axis[i];
-        }
-        avgX /= SZ;
-        avgY /= SZ;
-        avgZ /= SZ;
+        
+        /* Find the cluster center with greatest gravitational pull */
+        /* Gravitational potentials were already calculated during Nbody calls */
+        /* This matches NVIDIA CUDA sample behavior and avoids extra O(n²) traversal */
+        findClusterCenter(&avgX, &avgY, &avgZ);
+        
         fps_time_2 = getDoubleTime();
         draw3D(loop, LOOP, fps_time_2 - fps_time_1, avgX, avgY, avgZ);
     }
@@ -599,6 +666,7 @@ int main(int argc, char** argv) {
     newX_velocity = allocateBody();
     newY_velocity = allocateBody();
     newZ_velocity = allocateBody();
+    gravitationalPotential = allocateBody();  /* For optimized cluster tracking */
 
     screen(SCREENX, SCREENY);
     screentitle("[3D] NBody-Simulation (Babylon3D)");
@@ -644,5 +712,6 @@ int main(int argc, char** argv) {
     freeBody(newX_velocity);
     freeBody(newY_velocity);
     freeBody(newZ_velocity);
+    freeBody(gravitationalPotential);
     return 0;
 }
