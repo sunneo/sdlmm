@@ -78,9 +78,14 @@ void device_free(Device* dev);
 void device_clear(Device* dev);
 void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength, const Vector3* lightPosition);
 
+// Point sprite rendering functions
+void device_draw_point_sprite(Device* dev, const Vector3* position, float size, const Texture* texture, int color, int additive);
+void device_render_particles(Device* dev, const Camera* camera, const Vector3* positions, const int* colors, int particleCount, float spriteSize, const Texture* spriteTexture, int additive);
+
 // Texture functions
 Texture* texture_load(const char* filename);
 void texture_unload(Texture* tex);
+Texture* texture_create_gaussian(int size);
 
 // Vector3 helper functions
 Vector3 vector3(float x, float y, float z);

@@ -33,6 +33,11 @@ jobs:
 
       - name: Install SDL build dependencies
         run: |
+          # Try Taiwan mirrors for faster package downloads
+          echo "Configuring Taiwan apt mirrors..."
+          sudo sed -i 's|http://archive.ubuntu.com/ubuntu/|http://tw.archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list || true
+          sudo sed -i 's|http://security.ubuntu.com/ubuntu/|http://tw.archive.ubuntu.com/ubuntu/|g' /etc/apt/sources.list || true
+          
           sudo apt-get update -o Acquire::Retries=3 -o Acquire::http::Timeout=10 -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ${APT_PACKAGES}
 
