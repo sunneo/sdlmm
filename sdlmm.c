@@ -53,6 +53,7 @@ static void (*sdlkeyfnc)(int,int,int);
 static void (*sdltouchfnc)(int,int,int);
 static void (*sdlmousefnc)(int,int,int,int)=sdlmousefnc_default;
 static void (*sdlmotionfnc)(int,int,int);
+static void (*sdlwheelfnc)(int);
 typedef struct FreeTypeResult {
     int* pixels;
     char ch;
@@ -158,6 +159,10 @@ void setonmotion(void (*fnc)(int x,int y,int on)) {
 
 void setonmouse(void(*fnc)(int x,int y,int on,int btn)) {
     if(fnc) sdlmousefnc = fnc;
+}
+
+void setonwheel(void(*fnc)(int delta)) {
+    if(fnc) sdlwheelfnc = fnc;
 }
 
 __inline static void sdlset_pixel_nocheck(SDL_Surface *surface, int x, int y, Uint32 pixel)
@@ -630,11 +635,19 @@ void sdl_main_run() {
             }
         }
         else if(event.type == SDL_MOUSEBUTTONDOWN || event.type == SDL_MOUSEBUTTONUP) {
-            if(sdlmousefnc) {
-                sdlmousefnc(event.button.x,event.button.y,event.button.state==SDL_PRESSED,event.button.button);
-            }
-            if(sdltouchfnc) {
-                sdltouchfnc(event.button.x,event.button.y,event.button.state==SDL_PRESSED);
+            /* Handle mouse wheel (SDL 1.2: button 4=up, button 5=down) */
+            if(event.button.button == 4 || event.button.button == 5) {
+                if(sdlwheelfnc && event.type == SDL_MOUSEBUTTONDOWN) {
+                    int delta = (event.button.button == 4) ? 1 : -1;
+                    sdlwheelfnc(delta);
+                }
+            } else {
+                if(sdlmousefnc) {
+                    sdlmousefnc(event.button.x,event.button.y,event.button.state==SDL_PRESSED,event.button.button);
+                }
+                if(sdltouchfnc) {
+                    sdltouchfnc(event.button.x,event.button.y,event.button.state==SDL_PRESSED);
+                }
             }
         }
         else if(event.type == SDL_MOUSEMOTION) {
