@@ -44,6 +44,7 @@
 /* Trajectory line rendering constants */
 #define TRAJECTORY_MIN_ALPHA 50
 #define TRAJECTORY_ALPHA_RANGE 50
+#define TRAJECTORY_SEGMENTS 20
 
 /* Smoke particle alpha constant */
 #define SMOKE_MAX_ALPHA 64
@@ -733,7 +734,7 @@ static void draw_trajectory_lines(const Camera* camera) {
         if (!enemies[i].alive) continue;
         
         /* Draw line from starting position to target position (full trajectory) */
-        int segments = 20;
+        int segments = TRAJECTORY_SEGMENTS;
         for (j = 0; j < segments; j++) {
             float t1 = (float)j / segments;
             float t2 = (float)(j + 1) / segments;
@@ -775,7 +776,7 @@ static void draw_trajectory_lines(const Camera* camera) {
         if (!ourMissiles[i].active) continue;
         
         /* Draw line from launch position to current position */
-        int segments = 20;
+        int segments = TRAJECTORY_SEGMENTS;
         for (j = 0; j < segments; j++) {
             float t1 = (float)j / segments;
             float t2 = (float)(j + 1) / segments;
