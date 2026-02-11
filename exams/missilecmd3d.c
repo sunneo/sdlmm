@@ -44,6 +44,7 @@
 /* Trajectory line rendering constants */
 #define TRAJECTORY_MIN_ALPHA 50
 #define TRAJECTORY_ALPHA_RANGE 50
+#define TRAJECTORY_SEGMENTS 20
 
 /* Smoke particle alpha constant */
 #define SMOKE_MAX_ALPHA 64
@@ -300,6 +301,79 @@ static void fill_cube(Mesh* mesh, float sx, float sy, float sz) {
         mesh->faces[faceIdx].A = base; mesh->faces[faceIdx].B = base + 1; mesh->faces[faceIdx].C = base + 2; faceIdx++;
         mesh->faces[faceIdx].A = base + 1; mesh->faces[faceIdx].B = base + 3; mesh->faces[faceIdx].C = base + 2; faceIdx++;
     }
+}
+
+/* --- Create a line mesh as a thin quad (for trajectory lines) --- */
+static Mesh create_line_mesh(Vector3 start, Vector3 end, float width, int color) {
+    Mesh mesh;
+    mesh.Vertices = (Vertex*)malloc(sizeof(Vertex) * 4);
+    mesh.faces = (Face*)malloc(sizeof(Face) * 2);
+    
+    if (!mesh.Vertices || !mesh.faces) {
+        /* Handle allocation failure */
+        if (mesh.Vertices) free(mesh.Vertices);
+        if (mesh.faces) free(mesh.faces);
+        mesh.Vertices = NULL;
+        mesh.faces = NULL;
+        mesh.verticesCount = 0;
+        mesh.faceCount = 0;
+        return mesh;
+    }
+    
+    mesh.verticesCount = 4;
+    mesh.faceCount = 2;
+    mesh.Rotation = vector3_zero();
+    mesh.Position = vector3_zero();  /* Position already baked into vertices */
+    strcpy(mesh.name, "line");
+    
+    /* Generate a simple glow texture with the specified color */
+    generate_glow_texture(&mesh.texture, color);
+    
+    /* Calculate direction vector */
+    Vector3 dir = vector3_subtract(&end, &start);
+    float len = sqrtf(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    if (len < 0.001f) len = 0.001f;
+    dir.x /= len; dir.y /= len; dir.z /= len;
+    
+    /* Calculate perpendicular vector for width */
+    /* Use camera up vector (0,1,0) to create a billboard effect */
+    Vector3 up = vector3(0, 1, 0);
+    Vector3 perp = vector3_cross(&dir, &up);
+    float plen = sqrtf(perp.x * perp.x + perp.y * perp.y + perp.z * perp.z);
+    if (plen < 0.001f) {
+        /* If line is vertical, use a different perpendicular */
+        up = vector3(1, 0, 0);
+        perp = vector3_cross(&dir, &up);
+        plen = sqrtf(perp.x * perp.x + perp.y * perp.y + perp.z * perp.z);
+    }
+    perp.x = (perp.x / plen) * width * 0.5f;
+    perp.y = (perp.y / plen) * width * 0.5f;
+    perp.z = (perp.z / plen) * width * 0.5f;
+    
+    /* Create quad vertices */
+    mesh.Vertices[0].Coordinates = vector3(start.x - perp.x, start.y - perp.y, start.z - perp.z);
+    mesh.Vertices[1].Coordinates = vector3(start.x + perp.x, start.y + perp.y, start.z + perp.z);
+    mesh.Vertices[2].Coordinates = vector3(end.x - perp.x, end.y - perp.y, end.z - perp.z);
+    mesh.Vertices[3].Coordinates = vector3(end.x + perp.x, end.y + perp.y, end.z + perp.z);
+    
+    /* Normal faces camera (billboard) */
+    Vector3 normal = perp;
+    float nlen = sqrtf(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+    if (nlen > 0.001f) {
+        normal.x /= nlen; normal.y /= nlen; normal.z /= nlen;
+    }
+    
+    for (int i = 0; i < 4; i++) {
+        mesh.Vertices[i].Normal = normal;
+        mesh.Vertices[i].WorldCoordinates = vector3_zero();
+        mesh.Vertices[i].TextureCoordinates = vector3((i % 2) ? 1.0f : 0.0f, (i >= 2) ? 1.0f : 0.0f, 0);
+    }
+    
+    /* Create two triangles */
+    mesh.faces[0].A = 0; mesh.faces[0].B = 1; mesh.faces[0].C = 2;
+    mesh.faces[1].A = 1; mesh.faces[1].B = 3; mesh.faces[1].C = 2;
+    
+    return mesh;
 }
 
 /* --- Ensure render mesh array capacity --- */
@@ -720,57 +794,6 @@ static void check_reinit() {
 }
 
 /* --- Draw trajectory lines for enemy missiles --- */
-static void draw_trajectory_lines(const Camera* camera) {
-    int i, j;
-    Vector3 up = vector3_up();
-    Matrix viewMatrix = matrix_LookAtLH(&camera->Position, &camera->Target, &up);
-    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78f, 
-        (float)SCREENX / (float)SCREENY, 0.01f, 1000.0f);
-    Matrix viewProj = matrix_multiply(&viewMatrix, &projectionMatrix);
-    
-    /* Draw trajectory lines for all active enemy missiles (even when exploding) */
-    for (i = 0; i < MAX_ENEMY; i++) {
-        if (!enemies[i].alive) continue;
-        
-        /* Draw line from starting position to target position (full trajectory) */
-        int segments = 20;
-        for (j = 0; j < segments; j++) {
-            float t1 = (float)j / segments;
-            float t2 = (float)(j + 1) / segments;
-            
-            Vector3 p1 = vector3(
-                enemies[i].from.x + (enemies[i].to.x - enemies[i].from.x) * t1,
-                enemies[i].from.y + (enemies[i].to.y - enemies[i].from.y) * t1,
-                enemies[i].from.z + (enemies[i].to.z - enemies[i].from.z) * t1
-            );
-            Vector3 p2 = vector3(
-                enemies[i].from.x + (enemies[i].to.x - enemies[i].from.x) * t2,
-                enemies[i].from.y + (enemies[i].to.y - enemies[i].from.y) * t2,
-                enemies[i].from.z + (enemies[i].to.z - enemies[i].from.z) * t2
-            );
-            
-            /* Transform to screen space */
-            Vector3 clip1 = vector3_transform_coordinates(&p1, &viewProj);
-            Vector3 clip2 = vector3_transform_coordinates(&p2, &viewProj);
-            
-            /* Project to screen */
-            float screenX1 = (clip1.x + 1.0f) * 0.5f * SCREENX;
-            float screenY1 = (1.0f - clip1.y) * 0.5f * SCREENY;
-            float screenX2 = (clip2.x + 1.0f) * 0.5f * SCREENX;
-            float screenY2 = (1.0f - clip2.y) * 0.5f * SCREENY;
-            
-            /* Check if on screen */
-            if (screenX1 >= 0 && screenX1 < SCREENX && screenY1 >= 0 && screenY1 < SCREENY &&
-                screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
-                /* Draw with transparency (using alpha value in color) */
-                int alpha = (int)(TRAJECTORY_MIN_ALPHA + TRAJECTORY_ALPHA_RANGE * (1.0f - t1));  /* Fade along trajectory */
-                int color = (alpha << 24) | 0x40ff40;  /* Green with alpha */
-                drawline((int)screenX1, (int)screenY1, (int)screenX2, (int)screenY2, color);
-            }
-        }
-    }
-}
-
 /* --- Build the render mesh list and draw --- */
 static void drawScene() {
     int i;
@@ -796,7 +819,34 @@ static void drawScene() {
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (ourMissiles[i].active) needed++;
     }
+    /* Trajectory lines (one per active enemy missile + one per active our missile) */
+    for (i = 0; i < MAX_ENEMY; i++) {
+        if (enemies[i].alive) needed++;
+    }
+    for (i = 0; i < MAX_OUR_MISSILE; i++) {
+        if (ourMissiles[i].active) needed++;
+    }
     ensureRenderCap(needed);
+    
+    /* Free trajectory line meshes and textures from previous frame */
+    /* Must be done BEFORE resetting renderMeshCount */
+    for (i = 0; i < renderMeshCount; i++) {
+        if (strcmp(renderMeshes[i].name, "line") == 0) {
+            if (renderMeshes[i].Vertices) {
+                free(renderMeshes[i].Vertices);
+                renderMeshes[i].Vertices = NULL;
+            }
+            if (renderMeshes[i].faces) {
+                free(renderMeshes[i].faces);
+                renderMeshes[i].faces = NULL;
+            }
+            if (renderMeshes[i].texture.internalBuffer) {
+                free(renderMeshes[i].texture.internalBuffer);
+                renderMeshes[i].texture.internalBuffer = NULL;
+            }
+        }
+    }
+    
     renderMeshCount = 0;
 
     /* Ground: a flat wide cube */
@@ -833,6 +883,21 @@ static void drawScene() {
         }
     }
 
+    /* Trajectory lines as meshes (drawn after missiles so they appear on top) */
+    /* Enemy missile trajectories */
+    for (i = 0; i < MAX_ENEMY; i++) {
+        if (!enemies[i].alive) continue;
+        /* Create line mesh from start to current position */
+        renderMeshes[renderMeshCount++] = create_line_mesh(enemies[i].from, enemies[i].pos, 0.05f, 0x00ffff);
+    }
+    
+    /* Our missile trajectories */
+    for (i = 0; i < MAX_OUR_MISSILE; i++) {
+        if (!ourMissiles[i].active) continue;
+        /* Create line mesh from launch position to current position */
+        renderMeshes[renderMeshCount++] = create_line_mesh(ourMissiles[i].launchPos, ourMissiles[i].pos, 0.05f, 0xffff00);
+    }
+
     /* Update camera */
     camera.Position = vector3(
         camDist * sinf(camAngleY) * cosf(camAngleX),
@@ -861,9 +926,6 @@ static void drawScene() {
 
     device_render(m_device, &camera, renderMeshes, renderMeshCount, &lightPos);
 
-    /* Draw trajectory lines after 3D meshes */
-    draw_trajectory_lines(&camera);
-    
     /* Render smoke particles */
     {
         Vector3* particlePositions;
