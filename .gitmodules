@@ -1,0 +1,3 @@
+[submodule "nbody-nv/samples"]
+	path = nbody-nv/samples
+	url = https://github.com/NVIDIA/cuda-samples.git
