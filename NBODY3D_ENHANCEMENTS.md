@@ -47,7 +47,7 @@ static int camera_tracking = 0;
 static float target_cam_angle_x = 0.3f;
 static float target_cam_angle_y = 0.0f;
 static float target_cam_dist = 50.0f;
-static const float cam_transition_speed = 0.1f;  /* 10% per frame */
+static const float cam_transition_speed = 0.1f;  /* Exponential smoothing: 10% of remaining distance per frame */
 ```
 
 **Key Features:**
@@ -136,7 +136,7 @@ if (camera_tracking) {
     camDist += (target_cam_dist - camDist) * cam_transition_speed;
 }
 ```
-- Uses exponential smoothing with 10% transition speed
+- Uses exponential smoothing with 10% transition speed (moves 10% of remaining distance each frame)
 - Smooth, natural-looking camera movement
 - Converges to target position over ~20-30 frames
 

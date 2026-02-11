@@ -44,6 +44,24 @@
 #define MIN_Mass 3
 #define Gravity_Coef 3.3f
 
+/* UI slider constants */
+#define SLIDER_X_START 320
+#define SLIDER_WIDTH 400
+#define SLIDER_SIM_Y 25
+#define SLIDER_SIM_HEIGHT 15
+#define SLIDER_PARTICLE_Y 65
+#define SLIDER_PARTICLE_HEIGHT 15
+
+/* Particle size range */
+#define PARTICLE_SIZE_MIN 5.0f
+#define PARTICLE_SIZE_MAX 40.0f
+#define PARTICLE_SIZE_DEFAULT 15.0f
+
+/* Mouse control constants */
+#define MOUSE_ROTATION_SENSITIVITY 0.005f
+#define CAM_ANGLE_X_MAX 1.5f
+#define CAM_ANGLE_X_MIN -1.5f
+
 /* Global state */
 static int showhelp = 1;
 static int showmode = 3;
@@ -65,7 +83,7 @@ static int mouse_down = 0;
 static int last_mouse_x = 0;
 static int last_mouse_y = 0;
 /* Particle size control */
-static float particle_size = 15.0f;  /* Default particle size */
+static float particle_size = PARTICLE_SIZE_DEFAULT;  /* Default particle size */
 
 /* Physics arrays */
 static float *X_axis, *Y_axis, *Z_axis;
@@ -359,14 +377,14 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
         sprintf(buf, "random factor: %s[r]", random_simulatefactor ? "on" : "off");
         drawtext(buf, 5, 45, 0xffffff);
         /* Draw simulation factor slider */
-        fillrect(320, 25, 400 * (simulatetime_factor / 2.0f), 15, 0xfdfd00);
-        drawrect(320, 25, 400, 15, 0xffffff);
+        fillrect(SLIDER_X_START, SLIDER_SIM_Y, SLIDER_WIDTH * (simulatetime_factor / 2.0f), SLIDER_SIM_HEIGHT, 0xfdfd00);
+        drawrect(SLIDER_X_START, SLIDER_SIM_Y, SLIDER_WIDTH, SLIDER_SIM_HEIGHT, 0xffffff);
         
         sprintf(buf, "particle size: %-3.1f", particle_size);
         drawtext(buf, 5, 65, 0xffffff);
-        /* Draw particle size slider (size range 5-40) */
-        fillrect(320, 65, 400 * ((particle_size - 5.0f) / 35.0f), 15, 0x00ff00);
-        drawrect(320, 65, 400, 15, 0xffffff);
+        /* Draw particle size slider */
+        fillrect(SLIDER_X_START, SLIDER_PARTICLE_Y, SLIDER_WIDTH * ((particle_size - PARTICLE_SIZE_MIN) / (PARTICLE_SIZE_MAX - PARTICLE_SIZE_MIN)), SLIDER_PARTICLE_HEIGHT, 0x00ff00);
+        drawrect(SLIDER_X_START, SLIDER_PARTICLE_Y, SLIDER_WIDTH, SLIDER_PARTICLE_HEIGHT, 0xffffff);
         
         sprintf(buf, "cam dist:%.1f angle:(%.2f,%.2f)", camDist, camAngleX, camAngleY);
         drawtext(buf, 5, 85, 0xffffff);
@@ -474,17 +492,17 @@ static void kbfnc(int k, int ctrl, int on) {
 /* Mouse handler for sliders and camera rotation */
 static void mousefnc(int x, int y, int on, int btn) {
     if (on) {
-        /* Check for simulation factor slider (y: 25-40, x: 320-720) */
-        if (y > 25 && y < 40 && x >= 320 && x <= 720) {
-            float value = 2.0f * ((float)(x - 320)) / 400;
+        /* Check for simulation factor slider */
+        if (y > SLIDER_SIM_Y && y < SLIDER_SIM_Y + SLIDER_SIM_HEIGHT && x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH) {
+            float value = 2.0f * ((float)(x - SLIDER_X_START)) / SLIDER_WIDTH;
             if (value >= 0.0f && value <= 2.0f) {
                 simulatetime_factor = value;
             }
         }
-        /* Check for particle size slider (y: 65-80, x: 320-720) */
-        else if (y > 65 && y < 80 && x >= 320 && x <= 720) {
-            float value = 5.0f + 35.0f * ((float)(x - 320)) / 400;
-            if (value >= 5.0f && value <= 40.0f) {
+        /* Check for particle size slider */
+        else if (y > SLIDER_PARTICLE_Y && y < SLIDER_PARTICLE_Y + SLIDER_PARTICLE_HEIGHT && x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH) {
+            float value = PARTICLE_SIZE_MIN + (PARTICLE_SIZE_MAX - PARTICLE_SIZE_MIN) * ((float)(x - SLIDER_X_START)) / SLIDER_WIDTH;
+            if (value >= PARTICLE_SIZE_MIN && value <= PARTICLE_SIZE_MAX) {
                 particle_size = value;
             }
         }
@@ -508,14 +526,15 @@ static void mousemotion(int x, int y, int on) {
         int dy = y - last_mouse_y;
         
         /* Only rotate if not clicking on sliders */
-        if (!(y > 25 && y < 80 && x >= 320 && x <= 720)) {
+        int slider_max_y = (SLIDER_SIM_Y > SLIDER_PARTICLE_Y ? SLIDER_SIM_Y : SLIDER_PARTICLE_Y) + SLIDER_PARTICLE_HEIGHT;
+        if (!(y > SLIDER_SIM_Y && y < slider_max_y && x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH)) {
             /* Rotate camera based on mouse movement */
-            camAngleY += (float)dx * 0.005f;  /* Horizontal rotation */
-            camAngleX -= (float)dy * 0.005f;  /* Vertical rotation (inverted) */
+            camAngleY += (float)dx * MOUSE_ROTATION_SENSITIVITY;  /* Horizontal rotation */
+            camAngleX -= (float)dy * MOUSE_ROTATION_SENSITIVITY;  /* Vertical rotation (inverted) */
             
             /* Clamp vertical angle to prevent flipping */
-            if (camAngleX > 1.5f) camAngleX = 1.5f;
-            if (camAngleX < -1.5f) camAngleX = -1.5f;
+            if (camAngleX > CAM_ANGLE_X_MAX) camAngleX = CAM_ANGLE_X_MAX;
+            if (camAngleX < CAM_ANGLE_X_MIN) camAngleX = CAM_ANGLE_X_MIN;
             
             camera_tracking = 0;  /* Disable tracking on manual control */
         }
