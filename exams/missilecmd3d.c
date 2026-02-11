@@ -64,6 +64,8 @@ typedef struct {
     float r;
     Vector3 launchPos;  /* Launch position for smoke trail */
     int smokeTick;      /* Smoke particle timer */
+    int smokeParticleIds[5];  /* Indices of the 5 smoke particles for this missile */
+    int smokeCount;     /* Number of smoke particles spawned (up to 5) */
 } OurMissile3D;
 
 /* Particle system for smoke and explosions */
@@ -354,8 +356,9 @@ static void init_builds() {
 }
 
 /* --- Particle system helpers --- */
-static void spawn_smoke_particle(Vector3 pos) {
+static int spawn_smoke_particle(Vector3 pos) {
     Particle* p = &smokeParticles[nextSmokeIdx];
+    int particleId = nextSmokeIdx;
     nextSmokeIdx = (nextSmokeIdx + 1) % MAX_SMOKE_PARTICLES;
     
     p->pos = pos;
@@ -367,6 +370,7 @@ static void spawn_smoke_particle(Vector3 pos) {
     p->size = 0.3f + frandf() * 0.2f;
     p->color = 0xc0c0c0;  /* Light gray */
     p->active = 1;
+    return particleId;
 }
 
 /* Glow colors for explosion particles - cyan/white like nbody */
@@ -474,6 +478,10 @@ static void update_enemies() {
         if (!enemies[i].alive) continue;
         if (enemies[i].expl) {
             enemies[i].r += 0.15f;
+            /* Spawn explosion particles for enemy explosions */
+            if (enemies[i].r < ENEMY_MAX_EXPL_R && rand() % 3 == 0) {
+                spawn_explosion_particles(enemies[i].pos, 3);
+            }
             if (enemies[i].r >= ENEMY_MAX_EXPL_R) {
                 enemies[i].alive = 0;
                 enemies[i].expl = 0;
@@ -492,6 +500,8 @@ static void update_enemies() {
                 enemies[i].expl = 1;
                 enemies[i].ishit = 1;
                 score += 100;
+                /* Spawn initial explosion particles */
+                spawn_explosion_particles(enemies[i].pos, 50);
                 break;
             }
         }
@@ -506,6 +516,8 @@ static void update_enemies() {
                 enemies[i].expl = 1;
                 enemies[i].ishit = 1;
                 score += 100;
+                /* Spawn initial explosion particles */
+                spawn_explosion_particles(enemies[i].pos, 50);
                 break;
             }
         }
@@ -521,6 +533,8 @@ static void update_enemies() {
         if (dx * dx + dy * dy + dz * dz < 0.5f) {
             enemies[i].expl = 1;
             builds[enemies[i].targetBuild].alive = 0;
+            /* Spawn initial explosion particles */
+            spawn_explosion_particles(enemies[i].pos, 50);
         }
     }
 }
@@ -531,10 +545,23 @@ static void update_our_missiles() {
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (!ourMissiles[i].active) continue;
         if (!ourMissiles[i].expl) {
-            /* Spawn smoke particles periodically */
+            /* Spawn smoke particles periodically - limit to 5 particles */
             ourMissiles[i].smokeTick++;
-            if (ourMissiles[i].smokeTick % 2 == 0) {
-                spawn_smoke_particle(ourMissiles[i].pos);
+            if (ourMissiles[i].smokeTick % 2 == 0 && ourMissiles[i].smokeCount < 5) {
+                int particleId = spawn_smoke_particle(ourMissiles[i].pos);
+                /* If we have old smoke particles, deactivate the oldest one */
+                if (ourMissiles[i].smokeCount >= 5) {
+                    smokeParticles[ourMissiles[i].smokeParticleIds[0]].active = 0;
+                    /* Shift the array */
+                    int j;
+                    for (j = 0; j < 4; j++) {
+                        ourMissiles[i].smokeParticleIds[j] = ourMissiles[i].smokeParticleIds[j + 1];
+                    }
+                    ourMissiles[i].smokeParticleIds[4] = particleId;
+                } else {
+                    ourMissiles[i].smokeParticleIds[ourMissiles[i].smokeCount] = particleId;
+                    ourMissiles[i].smokeCount++;
+                }
             }
             
             float dx = ourMissiles[i].target.x - ourMissiles[i].pos.x;
@@ -588,6 +615,7 @@ static void launch_missile(int screenX, int screenY) {
             ourMissiles[i].pos = launcherPos;
             ourMissiles[i].launchPos = launcherPos;
             ourMissiles[i].smokeTick = 0;
+            ourMissiles[i].smokeCount = 0;  /* Initialize smoke count */
             ourMissiles[i].target = vector3(tx, ty, tz);
             ourMissiles[i].vel = vector3(dx / len * speed, dy / len * speed, dz / len * speed);
             ourMissiles[i].r = 0.15f;
@@ -622,21 +650,21 @@ static void draw_trajectory_lines(const Camera* camera) {
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive || enemies[i].expl) continue;
         
-        /* Draw line from current position to target with multiple segments */
+        /* Draw line from starting position to current position (laser from sky) */
         int segments = 20;
         for (j = 0; j < segments; j++) {
             float t1 = (float)j / segments;
             float t2 = (float)(j + 1) / segments;
             
             Vector3 p1 = vector3(
-                enemies[i].pos.x + (enemies[i].to.x - enemies[i].pos.x) * t1,
-                enemies[i].pos.y + (enemies[i].to.y - enemies[i].pos.y) * t1,
-                enemies[i].pos.z + (enemies[i].to.z - enemies[i].pos.z) * t1
+                enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t1,
+                enemies[i].from.y + (enemies[i].pos.y - enemies[i].from.y) * t1,
+                enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t1
             );
             Vector3 p2 = vector3(
-                enemies[i].pos.x + (enemies[i].to.x - enemies[i].pos.x) * t2,
-                enemies[i].pos.y + (enemies[i].to.y - enemies[i].pos.y) * t2,
-                enemies[i].pos.z + (enemies[i].to.z - enemies[i].pos.z) * t2
+                enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t2,
+                enemies[i].from.y + (enemies[i].pos.y - enemies[i].from.y) * t2,
+                enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t2
             );
             
             /* Transform to screen space */
@@ -708,9 +736,8 @@ static void drawScene() {
     /* Enemy missiles and explosions */
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive) continue;
-        if (enemies[i].expl) {
-            renderMeshes[renderMeshCount++] = meshAt(&explSphere, enemies[i].pos);
-        } else {
+        /* Only render missile mesh when not exploding - explosions use particles only */
+        if (!enemies[i].expl) {
             renderMeshes[renderMeshCount++] = meshAt(&missileSphere, enemies[i].pos);
         }
     }
@@ -718,9 +745,8 @@ static void drawScene() {
     /* Our missiles and explosions */
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (!ourMissiles[i].active) continue;
-        if (ourMissiles[i].expl) {
-            renderMeshes[renderMeshCount++] = meshAt(&ourExplSphere, ourMissiles[i].pos);
-        } else {
+        /* Only render missile mesh when not exploding - explosions use particles only */
+        if (!ourMissiles[i].expl) {
             renderMeshes[renderMeshCount++] = meshAt(&ourMissileSphere, ourMissiles[i].pos);
         }
     }
