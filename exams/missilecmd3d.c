@@ -736,7 +736,6 @@ static void draw_trajectory_lines(const Camera* camera) {
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive) continue;
         if (enemies[i].expl) continue;  /* Don't draw trajectory when exploding, like 2D version */
-        
         /* Only draw trajectory when missile is visible (not too high in the sky) */
         if (enemies[i].pos.y > 10.0f) continue;  /* Skip missiles still high in the sky */
         
