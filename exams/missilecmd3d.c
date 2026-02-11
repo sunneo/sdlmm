@@ -729,6 +729,9 @@ static void draw_trajectory_lines(const Camera* camera) {
         (float)SCREENX / (float)SCREENY, 0.01f, 1000.0f);
     Matrix viewProj = matrix_multiply(&viewMatrix, &projectionMatrix);
     
+    /* Enable alpha blending for trajectory lines */
+    setusealpha(1);
+    
     /* Draw trajectory lines for all active enemy missiles (even when exploding) */
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive) continue;
@@ -812,6 +815,9 @@ static void draw_trajectory_lines(const Camera* camera) {
             }
         }
     }
+    
+    /* Disable alpha blending after drawing trajectory lines */
+    setusealpha(0);
 }
 
 /* --- Build the render mesh list and draw --- */
