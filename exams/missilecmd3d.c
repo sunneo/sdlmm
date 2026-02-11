@@ -732,9 +732,10 @@ static void draw_trajectory_lines(const Camera* camera) {
     /* Enable alpha blending for trajectory lines */
     setusealpha(1);
     
-    /* Draw trajectory lines for all active enemy missiles (even when exploding) */
+    /* Draw trajectory lines for all active enemy missiles (only when not exploding) */
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive) continue;
+        if (enemies[i].expl) continue;  /* Don't draw trajectory when exploding, like 2D version */
         
         /* Draw line from starting position to CURRENT position (not target) */
         int segments = TRAJECTORY_SEGMENTS;
@@ -774,9 +775,10 @@ static void draw_trajectory_lines(const Camera* camera) {
         }
     }
     
-    /* Draw trajectory lines for our defensive missiles */
+    /* Draw trajectory lines for our defensive missiles (only when not exploding) */
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (!ourMissiles[i].active) continue;
+        if (ourMissiles[i].expl) continue;  /* Don't draw trajectory when exploding, like 2D version */
         
         /* Draw line from launch position to current position */
         int segments = TRAJECTORY_SEGMENTS;
