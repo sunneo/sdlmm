@@ -381,6 +381,10 @@ static int spawn_smoke_particle(Vector3 pos) {
 static const int explosionGlowColors[] = {0xFFFF00, 0xFFDD00, 0xFF8800, 0xFF4400, 0xFF0000};
 #define NUM_EXPLOSION_GLOW_COLORS 5
 
+/* Lightning green colors for our missile explosions */
+static const int greenGlowColors[] = {0x40ff40, 0x50ff50, 0x60ff60, 0x30ff30, 0x70ff70};
+#define NUM_GREEN_GLOW_COLORS 5
+
 static void spawn_explosion_particles(Vector3 pos, int count) {
     int i;
     for (i = 0; i < count; i++) {
@@ -403,6 +407,32 @@ static void spawn_explosion_particles(Vector3 pos, int count) {
         /* Fire colors - yellow/red/orange */
         int colorIdx = rand() % NUM_EXPLOSION_GLOW_COLORS;
         p->color = explosionGlowColors[colorIdx];
+        p->active = 1;
+    }
+}
+
+static void spawn_our_explosion_particles(Vector3 pos, int count) {
+    int i;
+    for (i = 0; i < count; i++) {
+        Particle* p = &explosionParticles[nextExplosionIdx];
+        nextExplosionIdx = (nextExplosionIdx + 1) % MAX_EXPLOSION_PARTICLES;
+        
+        /* Random direction */
+        float theta = frandf() * 2.0f * 3.14159265f;
+        float phi = frandf() * 3.14159265f;
+        float speed = 0.05f + frandf() * 0.15f;
+        
+        p->pos = pos;
+        p->vel = vector3(
+            sinf(phi) * cosf(theta) * speed,
+            sinf(phi) * sinf(theta) * speed,
+            cosf(phi) * speed
+        );
+        p->life = 1.0f;
+        p->size = 0.2f + frandf() * 0.3f;
+        /* Lightning green colors */
+        int colorIdx = rand() % NUM_GREEN_GLOW_COLORS;
+        p->color = greenGlowColors[colorIdx];
         p->active = 1;
     }
 }
@@ -574,8 +604,8 @@ static void update_our_missiles() {
             if (dx * dx + dy * dy + dz * dz < 0.5f) {
                 ourMissiles[i].expl = 1;
                 ourMissiles[i].r = 0.3f;
-                /* Spawn explosion particles */
-                spawn_explosion_particles(ourMissiles[i].pos, 50);
+                /* Spawn explosion particles with lightning green color */
+                spawn_our_explosion_particles(ourMissiles[i].pos, 50);
             }
             ourMissiles[i].pos.x += ourMissiles[i].vel.x;
             ourMissiles[i].pos.y += ourMissiles[i].vel.y;
@@ -583,9 +613,9 @@ static void update_our_missiles() {
         } else {
             if (ourMissiles[i].r < MAX_EXPL_R) {
                 ourMissiles[i].r += 0.08f;
-                /* Continue spawning explosion particles */
+                /* Continue spawning explosion particles with lightning green color */
                 if (rand() % 3 == 0) {
-                    spawn_explosion_particles(ourMissiles[i].pos, 3);
+                    spawn_our_explosion_particles(ourMissiles[i].pos, 3);
                 }
             } else {
                 ourMissiles[i].active = 0;
@@ -601,13 +631,60 @@ static void launch_missile(int screenX, int screenY) {
     if (remainMissile <= 0) return;
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (!ourMissiles[i].active) {
-            /* Map screen coordinates to 3D world space (approximate) */
-            float worldX = (((float)screenX / SCREENX) - 0.5f) * WORLD_WIDTH;
-            float worldY = -(((float)screenY / SCREENY) - 0.5f) * 15.0f;
-            float worldZ = 0.0f;
+            /* Proper screen-to-world unprojection using camera matrices */
+            Vector3 up = vector3_up();
+            Matrix viewMatrix = matrix_LookAtLH(&camera.Position, &camera.Target, &up);
+            Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78f, 
+                (float)SCREENX / (float)SCREENY, 0.01f, 1000.0f);
+            Matrix viewProj = matrix_multiply(&viewMatrix, &projectionMatrix);
+            Matrix invViewProj = matrix_Copy(&viewProj);
+            matrix_invert(&invViewProj);
+            
+            /* Convert screen coordinates to normalized device coordinates (NDC) */
+            float ndcX = ((float)screenX / SCREENX) * 2.0f - 1.0f;
+            float ndcY = 1.0f - ((float)screenY / SCREENY) * 2.0f;
+            
+            /* Unproject to world space at near and far planes */
+            Vector3 nearPoint = vector3(ndcX, ndcY, 0.0f);  /* Near plane (z=0 in NDC) */
+            Vector3 farPoint = vector3(ndcX, ndcY, 1.0f);   /* Far plane (z=1 in NDC) */
+            
+            Vector3 worldNear = vector3_transform_coordinates(&nearPoint, &invViewProj);
+            Vector3 worldFar = vector3_transform_coordinates(&farPoint, &invViewProj);
+            
+            /* Create ray from near to far */
+            Vector3 rayDir = vector3_subtract(&worldFar, &worldNear);
+            rayDir = vector3_normalize_copy(&rayDir);
+            
+            /* Intersect ray with a plane at z = 0 (middle of the playfield) */
+            /* Ray: P = worldNear + t * rayDir */
+            /* Plane: z = 0, so worldNear.z + t * rayDir.z = 0 */
+            Vector3 targetPos;
+            if (fabsf(rayDir.z) < 0.0001f) {
+                /* Ray is parallel to z=0 plane - use fallback position */
+                targetPos = vector3(0.0f, 2.0f, 0.0f);  /* Center of playfield */
+            } else {
+                float t = -worldNear.z / rayDir.z;
+                if (t < 0.0f) {
+                    /* Ray points away from plane - use fallback position */
+                    targetPos = vector3(0.0f, 2.0f, 0.0f);  /* Center of playfield */
+                } else {
+                    targetPos = vector3(
+                        worldNear.x + rayDir.x * t,
+                        worldNear.y + rayDir.y * t,
+                        0.0f  /* z = 0 plane */
+                    );
+                }
+            }
+            
+            /* Clamp to reasonable bounds */
+            if (targetPos.x < -WORLD_WIDTH / 2) targetPos.x = -WORLD_WIDTH / 2;
+            if (targetPos.x > WORLD_WIDTH / 2) targetPos.x = WORLD_WIDTH / 2;
+            if (targetPos.y < GROUND_Y) targetPos.y = GROUND_Y;
+            if (targetPos.y > 10.0f) targetPos.y = 10.0f;
+            
             /* Launch from the launcher building position */
             Vector3 launcherPos = builds[MAX_BUILD / 2].pos;
-            float tx = worldX, ty = worldY, tz = worldZ;
+            float tx = targetPos.x, ty = targetPos.y, tz = targetPos.z;
             float dx = tx - launcherPos.x;
             float dy = ty - launcherPos.y;
             float dz = tz - launcherPos.z;
@@ -655,21 +732,21 @@ static void draw_trajectory_lines(const Camera* camera) {
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive) continue;
         
-        /* Draw line from starting position to current position (laser from sky) */
+        /* Draw line from starting position to target position (full trajectory) */
         int segments = 20;
         for (j = 0; j < segments; j++) {
             float t1 = (float)j / segments;
             float t2 = (float)(j + 1) / segments;
             
             Vector3 p1 = vector3(
-                enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t1,
-                enemies[i].from.y + (enemies[i].pos.y - enemies[i].from.y) * t1,
-                enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t1
+                enemies[i].from.x + (enemies[i].to.x - enemies[i].from.x) * t1,
+                enemies[i].from.y + (enemies[i].to.y - enemies[i].from.y) * t1,
+                enemies[i].from.z + (enemies[i].to.z - enemies[i].from.z) * t1
             );
             Vector3 p2 = vector3(
-                enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t2,
-                enemies[i].from.y + (enemies[i].pos.y - enemies[i].from.y) * t2,
-                enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t2
+                enemies[i].from.x + (enemies[i].to.x - enemies[i].from.x) * t2,
+                enemies[i].from.y + (enemies[i].to.y - enemies[i].from.y) * t2,
+                enemies[i].from.z + (enemies[i].to.z - enemies[i].from.z) * t2
             );
             
             /* Transform to screen space */
