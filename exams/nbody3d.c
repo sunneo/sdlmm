@@ -40,10 +40,6 @@
 #define MAX_Mass 150
 #define MIN_Mass 3
 #define Gravity_Coef 3.3f
-#define SPHERE_SEGMENTS 6
-#define SPHERE_RINGS 4
-#define VERTS_PER_SPHERE ((SPHERE_SEGMENTS + 1) * (SPHERE_RINGS + 1))
-#define FACES_PER_SPHERE (SPHERE_SEGMENTS * SPHERE_RINGS * 2)
 
 /* Global state */
 static int showhelp = 1;
@@ -53,7 +49,7 @@ static int random_simulatefactor = 1;
 static int centralize = 0;
 static int SZ = NUM_BODY;
 /* Camera */
-static float camDist = 30.0f;
+static float camDist = 50.0f;
 static float camAngleX = 0.3f;
 static float camAngleY = 0.0f;
 
@@ -66,58 +62,24 @@ static float *Mass;
 /* 3D rendering */
 static Device* m_device = NULL;
 static Camera camera;
-static Mesh* bodyMeshes = NULL;  /* array of meshes, one per body */
-static int meshCount = 0;
+static Texture* particleTexture = NULL;  /* Gaussian texture for particles */
+static Vector3* particlePositions = NULL;  /* World positions for particles */
+static int* particleColors = NULL;  /* Colors for each particle */
 
-/* Glow colors for body textures - yellow/golden like NVIDIA nbody demo */
+/* Glow colors for particles - cyan/turquoise/white like NVIDIA nbody demo */
 static const int glowColors[] = {
-    0xffc020, 0xffe040, 0xffb010, 0xffd830, 0xffa000,
-    0xffe060, 0xff9010, 0xffc840, 0xffb830, 0xffd050
+    0x00FFFF,  /* cyan */
+    0x40FFFF,  /* light cyan */
+    0x80FFFF,  /* lighter cyan */
+    0xC0FFFF,  /* very light cyan */
+    0xFFFFFF,  /* white */
+    0x00E0E0,  /* darker cyan */
+    0x00C0C0,  /* dark cyan */
+    0x60FFFF,  /* cyan variant */
+    0xA0FFFF,  /* cyan variant 2 */
+    0xE0FFFF   /* almost white */
 };
 #define NUM_GLOW_COLORS 10
-
-static void generate_glow_texture(Texture* tex, int baseColor) {
-    int size = 32;
-    int* buf = (int*)malloc(sizeof(int) * size * size);
-    tex->width = size;
-    tex->height = size;
-    tex->internalBuffer = buf;
-
-    int br = (baseColor >> 16) & 0xff;
-    int bg = (baseColor >> 8) & 0xff;
-    int bb = baseColor & 0xff;
-
-    float cx = size / 2.0f, cy = size / 2.0f;
-    float maxR = size / 2.0f;
-    int x, y;
-    for (y = 0; y < size; y++) {
-        for (x = 0; x < size; x++) {
-            float dx = x - cx, dy = y - cy;
-            float dist = sqrtf(dx*dx + dy*dy) / maxR;
-            if (dist > 1.0f) dist = 1.0f;
-            float intensity;
-            int r, g, b;
-            if (dist < 0.3f) {
-                /* White-hot core */
-                float t = dist / 0.3f;
-                r = 255 - (int)((255 - br) * t);
-                g = 255 - (int)((255 - bg) * t);
-                b = 255 - (int)((255 - bb) * t);
-            } else {
-                /* Color to dark */
-                float t = (dist - 0.3f) / 0.7f;
-                intensity = 1.0f - t * t;
-                r = (int)(br * intensity);
-                g = (int)(bg * intensity);
-                b = (int)(bb * intensity);
-            }
-            if (r > 255) r = 255; if (r < 0) r = 0;
-            if (g > 255) g = 255; if (g < 0) g = 0;
-            if (b > 255) b = 255; if (b < 0) b = 0;
-            buf[y * size + x] = (r << 16) | (g << 8) | b;
-        }
-    }
-}
 
 #ifdef __linux__
 #include <sys/time.h>
@@ -193,111 +155,61 @@ static void Nbody(int i, int sz) {
 }
 
 /**
- * Create a sphere mesh with given segments/rings.
- * The sphere is unit-sized; we scale it via Position/offset in the render.
+ * Initialize particle rendering structures.
  */
-static void init_sphere_mesh(Mesh* mesh, float radius, int bodyIndex) {
-    int seg, ring, idx, fidx;
-    int vCount = VERTS_PER_SPHERE;
-    int fCount = FACES_PER_SPHERE;
-    mesh->Vertices = (Vertex*)malloc(sizeof(Vertex) * vCount);
-    mesh->faces = (Face*)malloc(sizeof(Face) * fCount);
-    mesh->verticesCount = vCount;
-    mesh->faceCount = fCount;
-    mesh->Rotation = vector3_zero();
-    mesh->Position = vector3_zero();
-    mesh->texture.internalBuffer = NULL;
-    mesh->texture.width = 0;
-    mesh->texture.height = 0;
-    generate_glow_texture(&mesh->texture, glowColors[bodyIndex % NUM_GLOW_COLORS]);
-    strcpy(mesh->name, "body");
-
-    /* Generate vertices */
-    idx = 0;
-    for (ring = 0; ring <= SPHERE_RINGS; ring++) {
-        float phi = (float)ring / SPHERE_RINGS * 3.14159265f;
-        float y = cosf(phi) * radius;
-        float ringRadius = sinf(phi) * radius;
-        for (seg = 0; seg <= SPHERE_SEGMENTS; seg++) {
-            float theta = (float)seg / SPHERE_SEGMENTS * 2.0f * 3.14159265f;
-            float x = cosf(theta) * ringRadius;
-            float z = sinf(theta) * ringRadius;
-            mesh->Vertices[idx].Coordinates = vector3(x, y, z);
-            /* Normal is just the normalized position for a sphere */
-            float len = sqrtf(x * x + y * y + z * z);
-            if (len > 0) {
-                mesh->Vertices[idx].Normal = vector3(x / len, y / len, z / len);
-            } else {
-                mesh->Vertices[idx].Normal = vector3(0, 1, 0);
-            }
-            mesh->Vertices[idx].WorldCoordinates = vector3_zero();
-            mesh->Vertices[idx].TextureCoordinates = vector3(
-                (float)seg / SPHERE_SEGMENTS,
-                (float)ring / SPHERE_RINGS, 0);
-            idx++;
-        }
+static void initParticles() {
+    int i;
+    particlePositions = (Vector3*)malloc(sizeof(Vector3) * SZ);
+    particleColors = (int*)malloc(sizeof(int) * SZ);
+    
+    /* Create Gaussian texture for particle sprites */
+    particleTexture = texture_create_gaussian(64);
+    
+    /* Assign colors to particles based on their index */
+    for (i = 0; i < SZ; i++) {
+        particleColors[i] = glowColors[i % NUM_GLOW_COLORS];
     }
+}
 
-    /* Generate faces (triangles) */
-    fidx = 0;
-    for (ring = 0; ring < SPHERE_RINGS; ring++) {
-        for (seg = 0; seg < SPHERE_SEGMENTS; seg++) {
-            int a = ring * (SPHERE_SEGMENTS + 1) + seg;
-            int b = a + SPHERE_SEGMENTS + 1;
-            mesh->faces[fidx].A = a;
-            mesh->faces[fidx].B = b;
-            mesh->faces[fidx].C = a + 1;
-            fidx++;
-            mesh->faces[fidx].A = b;
-            mesh->faces[fidx].B = b + 1;
-            mesh->faces[fidx].C = a + 1;
-            fidx++;
+static void freeParticles() {
+    if (particlePositions) {
+        free(particlePositions);
+        particlePositions = NULL;
+    }
+    if (particleColors) {
+        free(particleColors);
+        particleColors = NULL;
+    }
+    if (particleTexture) {
+        if (particleTexture->internalBuffer) {
+            free(particleTexture->internalBuffer);
         }
+        free(particleTexture);
+        particleTexture = NULL;
     }
 }
 
 /**
- * Initialize all 3D meshes for the bodies.
- * We use a shared pool of meshes to reduce allocations.
- */
-static void initMeshes() {
-    int i;
-    /* Limit rendered bodies for performance */
-    meshCount = SZ;
-    if (meshCount > 300) meshCount = 300;
-    bodyMeshes = (Mesh*)malloc(sizeof(Mesh) * meshCount);
-    for (i = 0; i < meshCount; i++) {
-        float r = 0.3f + (Mass[i] / MAX_Mass) * 0.5f;
-        init_sphere_mesh(&bodyMeshes[i], r, i);
-    }
-}
-
-static void freeMeshes() {
-    int i;
-    if (bodyMeshes) {
-        for (i = 0; i < meshCount; i++) {
-            if (bodyMeshes[i].Vertices) free(bodyMeshes[i].Vertices);
-            if (bodyMeshes[i].faces) free(bodyMeshes[i].faces);
-            if (bodyMeshes[i].texture.internalBuffer) free(bodyMeshes[i].texture.internalBuffer);
-        }
-        free(bodyMeshes);
-        bodyMeshes = NULL;
-    }
-}
-
-/**
- * Update mesh positions from physics simulation.
+ * Update particle positions from physics simulation.
  * Maps simulation coordinates to 3D world space.
  */
-static void updateMeshPositions(float avgX, float avgY, float avgZ) {
+static void updateParticlePositions(float avgX, float avgY, float avgZ) {
     int i;
-    float scale = 0.05f;
-    for (i = 0; i < meshCount; i++) {
-        bodyMeshes[i].Position = vector3(
-            (X_axis[i] - avgX) * scale,
-            (Y_axis[i] - avgY) * scale,
-            (Z_axis[i] - avgZ) * scale + 15.0f  /* offset so bodies are in front of camera */
-        );
+    float scale = 0.1f;  /* Scale factor for world coordinates */
+    for (i = 0; i < SZ; i++) {
+        if (centralize) {
+            particlePositions[i] = vector3(
+                (X_axis[i] - avgX) * scale,
+                (Y_axis[i] - avgY) * scale,
+                (Z_axis[i] - avgZ) * scale
+            );
+        } else {
+            particlePositions[i] = vector3(
+                (X_axis[i] - MAX_X_axis/2) * scale,
+                (Y_axis[i] - MAX_Y_axis/2) * scale,
+                (Z_axis[i] - MAX_Z_axis/2) * scale
+            );
+        }
     }
 }
 
@@ -310,33 +222,30 @@ static void updateCamera() {
         camDist * sinf(camAngleX),
         -camDist * cosf(camAngleY) * cosf(camAngleX)
     );
-    camera.Target = vector3(0, 0, 15.0f);
+    camera.Target = vector3(0, 0, 0);  /* Look at center */
 }
 
 /**
- * Draw the 3D scene: clear, render meshes, draw HUD text overlay.
+ * Draw the 3D scene: clear, render particles, draw HUD text overlay.
  */
 static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, float avgZ) {
     char buf[256];
     double rendert1, rendert2;
-    Vector3 lightPos;
 
     rendert1 = getDoubleTime();
 
-    /* Update mesh positions from simulation */
-    updateMeshPositions(avgX, avgY, avgZ);
+    /* Update particle positions from simulation */
+    updateParticlePositions(avgX, avgY, avgZ);
 
     /* Update camera */
     updateCamera();
 
-    /* Clear device */
+    /* Clear device to black */
     device_clear(m_device);
 
-    /* Light from above-right */
-    lightPos = vector3(10, 20, -5);
-
-    /* Render all body meshes */
-    device_render(m_device, &camera, bodyMeshes, meshCount, &lightPos);
+    /* Render all particles with additive blending */
+    device_render_particles(m_device, &camera, particlePositions, particleColors, 
+                           SZ, 15.0f, particleTexture, 1);  /* 1 = additive blending */
 
     /* Draw HUD overlay */
     if (showhelp) {
@@ -460,20 +369,20 @@ int main(int argc, char** argv) {
     }
 
     /* Initialize camera */
-    camera.Position = vector3(0, 5, -30);
-    camera.Target = vector3(0, 0, 15);
+    camera.Position = vector3(0, 0, -camDist);
+    camera.Target = vector3(0, 0, 0);
 
     /* Initialize bodies first so we know masses */
     Init_AllBody();
 
-    /* Create sphere meshes for rendering */
-    initMeshes();
+    /* Create particle rendering structures */
+    initParticles();
 
     for (i = 0; i < 20; ++i) {
         main_run(argc, argv);
     }
 
-    freeMeshes();
+    freeParticles();
     device_free(m_device);
     freeBody(X_axis);
     freeBody(Y_axis);

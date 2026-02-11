@@ -1013,6 +1013,161 @@ void device_drawTriangle(Device* dev,Vertex* v1,Vertex* v2,Vertex* v3,float colo
 
 #if 1
 
+// Create a Gaussian texture for soft particle sprites
+Texture* texture_create_gaussian(int size) {
+    Texture* tex = (Texture*)malloc(sizeof(Texture));
+    if (!tex) return NULL;
+    
+    tex->width = size;
+    tex->height = size;
+    tex->internalBuffer = (int*)malloc(sizeof(int) * size * size);
+    
+    if (!tex->internalBuffer) {
+        free(tex);
+        return NULL;
+    }
+    
+    float center = size / 2.0f;
+    float maxDist = size / 2.0f;
+    
+    for (int y = 0; y < size; y++) {
+        for (int x = 0; x < size; x++) {
+            float dx = x - center;
+            float dy = y - center;
+            float dist = sqrtf(dx * dx + dy * dy) / maxDist;
+            
+            if (dist > 1.0f) dist = 1.0f;
+            
+            // Hermite interpolation for smooth falloff
+            float t = dist;
+            float u2 = t * t;
+            float u3 = u2 * t;
+            float B0 = 2 * u3 - 3 * u2 + 1;  // Hermite basis
+            
+            float intensity = B0;
+            if (intensity < 0.0f) intensity = 0.0f;
+            
+            // Store as grayscale with alpha
+            int alpha = (int)(intensity * 255.0f);
+            tex->internalBuffer[y * size + x] = (alpha << 24) | (alpha << 16) | (alpha << 8) | alpha;
+        }
+    }
+    
+    return tex;
+}
+
+// Draw a single point sprite with texture and optional additive blending
+void device_draw_point_sprite(Device* dev, const Vector3* position, float size, const Texture* texture, int color, int additive) {
+    if (!dev || !position || !texture) return;
+    
+    int cx = (int)position->x;
+    int cy = (int)position->y;
+    int halfSize = (int)(size / 2.0f);
+    
+    // Extract color components
+    int baseR = (color >> 16) & 0xFF;
+    int baseG = (color >> 8) & 0xFF;
+    int baseB = color & 0xFF;
+    
+    // Draw textured quad centered on particle position
+    for (int dy = -halfSize; dy <= halfSize; dy++) {
+        for (int dx = -halfSize; dx <= halfSize; dx++) {
+            int px = cx + dx;
+            int py = cy + dy;
+            
+            // Bounds check
+            if (px < 0 || py < 0 || px >= dev->workingWidth || py >= dev->workingHeight) {
+                continue;
+            }
+            
+            // Sample texture
+            int tx = (int)(((float)(dx + halfSize) / size) * texture->width);
+            int ty = (int)(((float)(dy + halfSize) / size) * texture->height);
+            
+            if (tx < 0) tx = 0;
+            if (ty < 0) ty = 0;
+            if (tx >= texture->width) tx = texture->width - 1;
+            if (ty >= texture->height) ty = texture->height - 1;
+            
+            int texColor = texture->internalBuffer[ty * texture->width + tx];
+            int texAlpha = (texColor >> 24) & 0xFF;
+            
+            if (texAlpha == 0) continue;
+            
+            // Apply texture intensity to base color
+            float intensity = texAlpha / 255.0f;
+            int r = (int)(baseR * intensity);
+            int g = (int)(baseG * intensity);
+            int b = (int)(baseB * intensity);
+            
+            int idx = py * dev->workingWidth + px;
+            
+            if (additive) {
+                // Additive blending
+                int bgColor = dev->backbuffer[idx];
+                int bgR = (bgColor >> 16) & 0xFF;
+                int bgG = (bgColor >> 8) & 0xFF;
+                int bgB = bgColor & 0xFF;
+                
+                r = bgR + r; if (r > 255) r = 255;
+                g = bgG + g; if (g > 255) g = 255;
+                b = bgB + b; if (b > 255) b = 255;
+            }
+            
+            dev->backbuffer[idx] = (r << 16) | (g << 8) | b;
+        }
+    }
+}
+
+// Render multiple particles with camera projection
+void device_render_particles(Device* dev, const Camera* camera, const Vector3* positions, const int* colors, 
+                             int particleCount, float spriteSize, const Texture* spriteTexture, int additive) {
+    if (!dev || !camera || !positions || !spriteTexture) return;
+    
+    // Build view and projection matrices
+    Vector3 up = vector3_up();
+    Matrix viewMatrix = matrix_LookAtLH(&camera->Position, &camera->Target, &up);
+    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78f, 
+        (float)dev->workingWidth / (float)dev->workingHeight, 0.01f, 1000.0f);
+    Matrix viewProj = matrix_multiply(&viewMatrix, &projectionMatrix);
+    
+    // Render each particle
+    for (int i = 0; i < particleCount; i++) {
+        Vector3 worldPos = positions[i];
+        
+        // Transform to clip space
+        Vector3 clipPos = vector3_transform_coordinates(&worldPos, &viewProj);
+        
+        // Check if behind camera
+        Vector3 viewPos = vector3_transform_coordinates(&worldPos, &viewMatrix);
+        if (viewPos.z < 0.1f) continue;  // Skip particles behind or very close to camera
+        
+        // Project to screen space
+        float screenX = (clipPos.x + 1.0f) * 0.5f * dev->workingWidth;
+        float screenY = (1.0f - clipPos.y) * 0.5f * dev->workingHeight;
+        
+        // Skip if off-screen (with margin)
+        float margin = spriteSize * 2.0f;
+        if (screenX < -margin || screenX >= dev->workingWidth + margin ||
+            screenY < -margin || screenY >= dev->workingHeight + margin) {
+            continue;
+        }
+        
+        // Scale sprite size based on distance (perspective)
+        float distScale = 1.0f / viewPos.z;
+        float finalSize = spriteSize * distScale * 100.0f;  // Scale factor for visibility
+        
+        // Clamp size for performance
+        if (finalSize < 2.0f) finalSize = 2.0f;
+        if (finalSize > 100.0f) finalSize = 100.0f;
+        
+        Vector3 screenPos = vector3(screenX, screenY, viewPos.z);
+        int particleColor = colors ? colors[i] : 0xFFFFFF;
+        
+        device_draw_point_sprite(dev, &screenPos, finalSize, spriteTexture, particleColor, additive);
+    }
+}
+
 void device_render(Device* dev, const Camera* camera, const Mesh* meshes, int meshesLength, const Vector3* lightPosition){
     int index;
     Vector3 up = vector3_up();
