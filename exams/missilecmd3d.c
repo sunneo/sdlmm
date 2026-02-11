@@ -736,21 +736,21 @@ static void draw_trajectory_lines(const Camera* camera) {
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive) continue;
         
-        /* Draw line from starting position to target position (full trajectory) */
+        /* Draw line from starting position to CURRENT position (not target) */
         int segments = TRAJECTORY_SEGMENTS;
         for (j = 0; j < segments; j++) {
             float t1 = (float)j / segments;
             float t2 = (float)(j + 1) / segments;
             
             Vector3 p1 = vector3(
-                enemies[i].from.x + (enemies[i].to.x - enemies[i].from.x) * t1,
-                enemies[i].from.y + (enemies[i].to.y - enemies[i].from.y) * t1,
-                enemies[i].from.z + (enemies[i].to.z - enemies[i].from.z) * t1
+                enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t1,
+                enemies[i].from.y + (enemies[i].pos.y - enemies[i].from.y) * t1,
+                enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t1
             );
             Vector3 p2 = vector3(
-                enemies[i].from.x + (enemies[i].to.x - enemies[i].from.x) * t2,
-                enemies[i].from.y + (enemies[i].to.y - enemies[i].from.y) * t2,
-                enemies[i].from.z + (enemies[i].to.z - enemies[i].from.z) * t2
+                enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t2,
+                enemies[i].from.y + (enemies[i].pos.y - enemies[i].from.y) * t2,
+                enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t2
             );
             
             /* Transform to screen space */
