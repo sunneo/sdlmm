@@ -740,11 +740,11 @@ static void draw_trajectory_lines(const Camera* camera) {
         Vector3 clipStart = vector3_transform_coordinates(&enemies[i].from, &viewProj);
         Vector3 clipEnd = vector3_transform_coordinates(&enemies[i].pos, &viewProj);
         
-        /* Convert to screen coordinates */
-        float screenX1 = (clipStart.x + 1.0f) * 0.5f * SCREENX;
-        float screenY1 = (1.0f - clipStart.y) * 0.5f * SCREENY;
-        float screenX2 = (clipEnd.x + 1.0f) * 0.5f * SCREENX;
-        float screenY2 = (1.0f - clipEnd.y) * 0.5f * SCREENY;
+        /* Convert to screen coordinates - MATCH device_project formula exactly */
+        float screenX1 = clipStart.x * SCREENX + SCREENX / 2.0f;
+        float screenY1 = -clipStart.y * SCREENY + SCREENY / 2.0f;
+        float screenX2 = clipEnd.x * SCREENX + SCREENX / 2.0f;
+        float screenY2 = -clipEnd.y * SCREENY + SCREENY / 2.0f;
         
         /* Draw line if both points are on screen */
         if (screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
@@ -761,11 +761,11 @@ static void draw_trajectory_lines(const Camera* camera) {
         Vector3 clipStart = vector3_transform_coordinates(&ourMissiles[i].launchPos, &viewProj);
         Vector3 clipEnd = vector3_transform_coordinates(&ourMissiles[i].pos, &viewProj);
         
-        /* Convert to screen coordinates */
-        float screenX1 = (clipStart.x + 1.0f) * 0.5f * SCREENX;
-        float screenY1 = (1.0f - clipStart.y) * 0.5f * SCREENY;
-        float screenX2 = (clipEnd.x + 1.0f) * 0.5f * SCREENX;
-        float screenY2 = (1.0f - clipEnd.y) * 0.5f * SCREENY;
+        /* Convert to screen coordinates - MATCH device_project formula exactly */
+        float screenX1 = clipStart.x * SCREENX + SCREENX / 2.0f;
+        float screenY1 = -clipStart.y * SCREENY + SCREENY / 2.0f;
+        float screenX2 = clipEnd.x * SCREENX + SCREENX / 2.0f;
+        float screenY2 = -clipEnd.y * SCREENY + SCREENY / 2.0f;
         
         /* Draw line if end point is on screen */
         if (screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
