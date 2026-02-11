@@ -48,6 +48,9 @@
 /* Smoke particle alpha constant */
 #define SMOKE_MAX_ALPHA 64
 
+/* Ray intersection fallback distance when ray doesn't intersect target plane */
+#define RAY_FALLBACK_DISTANCE 10.0f
+
 /* --- Data structures --- */
 typedef struct {
     Vector3 pos;
@@ -659,7 +662,7 @@ static void launch_missile(int screenX, int screenY) {
             /* Ray: P = worldNear + t * rayDir */
             /* Plane: z = 0, so worldNear.z + t * rayDir.z = 0 */
             float t = -worldNear.z / rayDir.z;
-            if (t < 0.0f) t = 10.0f;  /* Fallback if ray doesn't intersect */
+            if (t < 0.0f) t = RAY_FALLBACK_DISTANCE;  /* Fallback if ray doesn't intersect */
             
             Vector3 targetPos = vector3(
                 worldNear.x + rayDir.x * t,
