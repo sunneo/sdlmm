@@ -64,8 +64,9 @@ typedef struct {
     float r;
     Vector3 launchPos;  /* Launch position for smoke trail */
     int smokeTick;      /* Smoke particle timer */
-    int smokeParticleIds[5];  /* Indices of the 5 smoke particles for this missile */
+    int smokeParticleIds[5];  /* IDs of the 5 smoke particles for this missile */
     int smokeCount;     /* Number of smoke particles spawned (up to 5) */
+    int smokeHead;      /* Head index for circular buffer (0-4) */
 } OurMissile3D;
 
 /* Particle system for smoke and explosions */
@@ -541,7 +542,7 @@ static void update_enemies() {
 
 /* --- Update our missiles --- */
 static void update_our_missiles() {
-    int i;
+    int i, j;
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (!ourMissiles[i].active) continue;
         if (!ourMissiles[i].expl) {
@@ -549,16 +550,16 @@ static void update_our_missiles() {
             ourMissiles[i].smokeTick++;
             if (ourMissiles[i].smokeTick % 2 == 0) {
                 int particleId = spawn_smoke_particle(ourMissiles[i].pos);
-                /* If we already have 5 smoke particles, deactivate the oldest one */
+                /* If we already have 5 smoke particles, replace the oldest one using circular buffer */
                 if (ourMissiles[i].smokeCount >= 5) {
-                    smokeParticles[ourMissiles[i].smokeParticleIds[0]].active = 0;
-                    /* Shift the array */
-                    int j;
-                    for (j = 0; j < 4; j++) {
-                        ourMissiles[i].smokeParticleIds[j] = ourMissiles[i].smokeParticleIds[j + 1];
-                    }
-                    ourMissiles[i].smokeParticleIds[4] = particleId;
+                    /* Deactivate the oldest particle at the head position */
+                    smokeParticles[ourMissiles[i].smokeParticleIds[ourMissiles[i].smokeHead]].active = 0;
+                    /* Replace with new particle */
+                    ourMissiles[i].smokeParticleIds[ourMissiles[i].smokeHead] = particleId;
+                    /* Move head to next position in circular buffer */
+                    ourMissiles[i].smokeHead = (ourMissiles[i].smokeHead + 1) % 5;
                 } else {
+                    /* Still filling up the initial 5 particles */
                     ourMissiles[i].smokeParticleIds[ourMissiles[i].smokeCount] = particleId;
                     ourMissiles[i].smokeCount++;
                 }
@@ -616,6 +617,7 @@ static void launch_missile(int screenX, int screenY) {
             ourMissiles[i].launchPos = launcherPos;
             ourMissiles[i].smokeTick = 0;
             ourMissiles[i].smokeCount = 0;  /* Initialize smoke count */
+            ourMissiles[i].smokeHead = 0;   /* Initialize circular buffer head */
             ourMissiles[i].target = vector3(tx, ty, tz);
             ourMissiles[i].vel = vector3(dx / len * speed, dy / len * speed, dz / len * speed);
             ourMissiles[i].r = 0.15f;
