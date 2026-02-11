@@ -35,20 +35,20 @@
 
 #define SCREENX 800
 #define SCREENY 600
-#define NUM_BODY 500
-#define LOOP 9999
-#define MAX_X_axis 500
+#define NUM_BODY 2048
+#define LOOP 500
+#define MAX_X_axis 300
 #define MIN_X_axis 0
-#define MAX_Y_axis 500
+#define MAX_Y_axis 300
 #define MIN_Y_axis 0
-#define MAX_Z_axis 500
+#define MAX_Z_axis 100
 #define MIN_Z_axis 0
-#define MAX_Velocity 200
-#define MIN_velocity -200
-#define MAX_Mass 150
-#define MIN_Mass 3
-#define Gravity_Coef 3.3f
-#define SOFTENING 0.01f  /* Softening parameter (epsilon) to prevent singularities - NVIDIA nbody sample */
+#define MAX_Velocity 10
+#define MIN_velocity 1
+#define MAX_Mass 300
+#define MIN_Mass 200
+#define Gravity_Coef 30.3f
+#define SOFTENING 100.001f  /* Softening parameter (epsilon) to prevent singularities - NVIDIA nbody sample */
 #define SOFTENING_SQUARED (SOFTENING * SOFTENING)
 
 /* UI slider constants */
@@ -61,7 +61,7 @@
 
 /* Particle size range */
 #define PARTICLE_SIZE_MIN 5.0f
-#define PARTICLE_SIZE_MAX 40.0f
+#define PARTICLE_SIZE_MAX 200.0f
 #define PARTICLE_SIZE_DEFAULT 15.0f
 
 /* Mouse control constants */
@@ -555,7 +555,7 @@ static void kbfnc(int k, int ctrl, int on) {
             case 'h': case 'H': showhelp = !showhelp; break;
             case 'd': case 'D': showDebugCube = !showDebugCube; break;  /* Toggle debug cube */
             case '+': case '=': 
-                if (camDist > 5.0f) camDist -= 3.0f; 
+                camDist -= 3.0f; 
                 camera_tracking = 0;  /* Disable tracking on manual control */
                 break;
             case '-': case '_': 
