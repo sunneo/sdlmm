@@ -66,6 +66,7 @@ static Texture* particleTexture = NULL;  /* Gaussian texture for particles */
 static Vector3* particlePositions = NULL;  /* World positions for particles */
 static int* particleColors = NULL;  /* Colors for each particle */
 static Mesh* debugCube = NULL;  /* Debug cube to verify rendering */
+static const int hasDebugCube=0;
 static int showDebugCube = 1;  /* Toggle for debug cube visibility */
 
 /* Glow colors for particles - cyan/turquoise/white like NVIDIA nbody demo */
@@ -160,6 +161,7 @@ static void Nbody(int i, int sz) {
  * Create a simple debug cube for visual confirmation
  */
 static void initDebugCube() {
+    if (!hasDebugCube) return;
     debugCube = softengine_mesh("DebugCube", 8, 12);
     if (!debugCube) return;
     
@@ -306,7 +308,7 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
     device_clear(m_device);
 
     /* Render debug cube if enabled (for visual confirmation) */
-    if (showDebugCube && debugCube) {
+    if (hasDebugCube && showDebugCube && debugCube) {
         Vector3 lightPos = vector3(10, 10, -10);
         device_render(m_device, &camera, debugCube, 1, &lightPos);
     }
@@ -325,8 +327,10 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
         drawtext(buf, 5, 45, 0xffffff);
         sprintf(buf, "cam dist:%.1f angle:(%.2f,%.2f)", camDist, camAngleX, camAngleY);
         drawtext(buf, 5, 65, 0xffffff);
-        sprintf(buf, "debug cube: %s[d]", showDebugCube ? "on" : "off");
-        drawtext(buf, 5, 85, 0xffffff);
+	if(hasDebugCube){
+           sprintf(buf, "debug cube: %s[d]", showDebugCube ? "on" : "off");
+           drawtext(buf, 5, 85, 0xffffff);
+        }
         drawtext("[h]help [+/-]zoom [arrows]rotate [d]cube", 5, 105, 0xaaaaaa);
     }
 
