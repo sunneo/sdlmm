@@ -41,6 +41,10 @@
 #define SPH_VERTS ((SPH_SEG + 1) * (SPH_RING + 1))
 #define SPH_FACES (SPH_SEG * SPH_RING * 2)
 
+/* Trajectory line rendering constants */
+#define TRAJECTORY_MIN_ALPHA 50
+#define TRAJECTORY_ALPHA_RANGE 50
+
 /* --- Data structures --- */
 typedef struct {
     Vector3 pos;
@@ -361,6 +365,10 @@ static void spawn_smoke_particle(Vector3 pos) {
     p->active = 1;
 }
 
+/* Glow colors for explosion particles - cyan/white like nbody */
+static const int explosionGlowColors[] = {0x00FFFF, 0x80FFFF, 0xC0FFFF, 0xFFFFFF};
+#define NUM_EXPLOSION_GLOW_COLORS 4
+
 static void spawn_explosion_particles(Vector3 pos, int count) {
     int i;
     for (i = 0; i < count; i++) {
@@ -381,9 +389,8 @@ static void spawn_explosion_particles(Vector3 pos, int count) {
         p->life = 1.0f;
         p->size = 0.2f + frandf() * 0.3f;
         /* Glow colors like nbody - cyan/white */
-        int colorIdx = rand() % 4;
-        int colors[] = {0x00FFFF, 0x80FFFF, 0xC0FFFF, 0xFFFFFF};
-        p->color = colors[colorIdx];
+        int colorIdx = rand() % NUM_EXPLOSION_GLOW_COLORS;
+        p->color = explosionGlowColors[colorIdx];
         p->active = 1;
     }
 }
@@ -642,7 +649,7 @@ static void draw_trajectory_lines(const Camera* camera) {
             if (screenX1 >= 0 && screenX1 < SCREENX && screenY1 >= 0 && screenY1 < SCREENY &&
                 screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
                 /* Draw with transparency (using alpha value in color) */
-                int alpha = (int)(50 + 50 * (1.0f - t1));  /* Fade along trajectory */
+                int alpha = (int)(TRAJECTORY_MIN_ALPHA + TRAJECTORY_ALPHA_RANGE * (1.0f - t1));  /* Fade along trajectory */
                 int color = (alpha << 24) | 0x40ff40;  /* Green with alpha */
                 drawline((int)screenX1, (int)screenY1, (int)screenX2, (int)screenY2, color);
             }

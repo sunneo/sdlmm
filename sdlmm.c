@@ -53,7 +53,7 @@ static void (*sdlkeyfnc)(int,int,int);
 static void (*sdltouchfnc)(int,int,int);
 static void (*sdlmousefnc)(int,int,int,int)=sdlmousefnc_default;
 static void (*sdlmotionfnc)(int,int,int);
-static void (*sdlwheelfnc)(int);
+static void (*sdlwheelfnc)(int) = NULL;
 typedef struct FreeTypeResult {
     int* pixels;
     char ch;
