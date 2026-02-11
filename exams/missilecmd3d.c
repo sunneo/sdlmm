@@ -745,19 +745,16 @@ static void drawScene() {
     /* Draw trajectory lines after 3D meshes */
     draw_trajectory_lines(&camera);
     
-    /* Render particles */
+    /* Render smoke particles */
     {
         Vector3* particlePositions;
         int* particleColors;
         int particleCount = 0;
         int i;
         
-        /* Count active particles */
+        /* Count active smoke particles */
         for (i = 0; i < MAX_SMOKE_PARTICLES; i++) {
             if (smokeParticles[i].active) particleCount++;
-        }
-        for (i = 0; i < MAX_EXPLOSION_PARTICLES; i++) {
-            if (explosionParticles[i].active) particleCount++;
         }
         
         if (particleCount > 0) {
@@ -776,6 +773,32 @@ static void drawScene() {
                 }
             }
             
+            /* Render smoke with transparency */
+            device_render_particles(m_device, &camera, particlePositions, particleColors,
+                                   particleCount, 8.0f, smokeTexture, 0);
+            
+            free(particlePositions);
+            free(particleColors);
+        }
+    }
+    
+    /* Render explosion particles */
+    {
+        Vector3* particlePositions;
+        int* particleColors;
+        int particleCount = 0;
+        int i;
+        
+        /* Count active explosion particles */
+        for (i = 0; i < MAX_EXPLOSION_PARTICLES; i++) {
+            if (explosionParticles[i].active) particleCount++;
+        }
+        
+        if (particleCount > 0) {
+            particlePositions = (Vector3*)malloc(sizeof(Vector3) * particleCount);
+            particleColors = (int*)malloc(sizeof(int) * particleCount);
+            int idx = 0;
+            
             /* Add explosion particles */
             for (i = 0; i < MAX_EXPLOSION_PARTICLES; i++) {
                 if (explosionParticles[i].active) {
@@ -787,9 +810,9 @@ static void drawScene() {
                 }
             }
             
-            /* Render smoke with transparency */
+            /* Render explosions with additive blending for glow */
             device_render_particles(m_device, &camera, particlePositions, particleColors,
-                                   particleCount, 8.0f, smokeTexture, 0);
+                                   particleCount, 10.0f, explosionTexture, 1);
             
             free(particlePositions);
             free(particleColors);
