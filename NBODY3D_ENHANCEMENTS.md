@@ -163,7 +163,38 @@ These changes bring nbody3d.c closer to the NVIDIA CUDA nbody sample:
 - ✅ UI-based parameter control
 - ✅ Particle size adjustment
 - ✅ Similar visual appearance (cyan/turquoise/white particles with additive blending)
-- ✅ Same gravitational physics algorithm
+- ✅ **Same gravitational physics algorithm with softening parameter**
+
+### Physics Algorithm (NVIDIA nbody sample)
+
+The gravitational force calculation now matches the NVIDIA CUDA nbody sample:
+
+**Formula:**
+```
+F = G * m_i * m_j * r / (r^2 + epsilon^2)^(3/2)
+```
+
+Where:
+- `G` = Gravitational constant (`Gravity_Coef = 3.3f`)
+- `m_i`, `m_j` = Masses of particles i and j
+- `r` = Position difference vector
+- `epsilon` = Softening parameter (`SOFTENING = 0.01f`)
+
+**Key Implementation Details:**
+```c
+float distSqr = dx*dx + dy*dy + dz*dz + SOFTENING_SQUARED;
+float invDist = 1.0f / sqrtf(distSqr);
+float invDistCube = invDist * invDist * invDist;
+float s = Gravity_Coef * Mass[j] * invDistCube;
+```
+
+**Benefits of Softening:**
+1. **Prevents singularities**: When two particles occupy nearly the same position, the force remains finite
+2. **Numerical stability**: Prevents extreme accelerations that cause integration errors
+3. **Energy conservation**: Maintains better energy conservation over long simulations
+4. **Realistic close encounters**: Models gravitational interactions more realistically when particles are very close
+
+This is the standard approach used in astrophysical N-body simulations and matches the NVIDIA CUDA sample implementation.
 
 ## Build Instructions
 

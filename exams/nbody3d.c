@@ -3,7 +3,12 @@
  *
  * Renders gravitational bodies as 3D spheres in a true 3D scene
  * with camera controls and real-time physics simulation.
- * Based on NVIDIA CUDA nbody sample.
+ * Based on NVIDIA CUDA nbody sample with softening parameter.
+ *
+ * Physics Algorithm:
+ *   Uses NVIDIA nbody sample algorithm with softening parameter to prevent
+ *   numerical instabilities when particles get very close:
+ *   F = G * m_i * m_j * r / (r^2 + epsilon^2)^(3/2)
  *
  * Controls:
  *   0-3 : Change display mode (wireframe/solid/mixed)
@@ -43,6 +48,8 @@
 #define MAX_Mass 150
 #define MIN_Mass 3
 #define Gravity_Coef 3.3f
+#define SOFTENING 0.01f  /* Softening parameter (epsilon) to prevent singularities - NVIDIA nbody sample */
+#define SOFTENING_SQUARED (SOFTENING * SOFTENING)
 
 /* UI slider constants */
 #define SLIDER_X_START 320
@@ -160,30 +167,50 @@ static void Init_AllBody() {
     }
 }
 
-/* N-body gravitational calculation for body i */
+/* N-body gravitational calculation for body i 
+ * Uses softening parameter to match NVIDIA CUDA nbody sample algorithm
+ * Force = G * m_i * m_j * r / (r^2 + epsilon^2)^(3/2)
+ */
 static void Nbody(int i, int sz) {
     int j;
     float sumX = 0, sumY = 0, sumZ = 0;
     for (j = 0; j < sz; j++) {
         float X_position, Y_position, Z_position;
-        float Distance, Force;
+        float distSqr, invDist, invDistCube, s;
         if (j == i) continue;
+        
+        /* Calculate position difference vector */
         X_position = X_axis[j] - X_axis[i];
         Y_position = Y_axis[j] - Y_axis[i];
         Z_position = Z_axis[j] - Z_axis[i];
-        Distance = sqrtf(X_position * X_position + Y_position * Y_position + Z_position * Z_position);
-        if (Distance == 0) continue;
-        Force = Gravity_Coef * Mass[i] / (Distance * Distance);
-        sumX += Force * X_position;
-        sumY += Force * Y_position;
-        sumZ += Force * Z_position;
+        
+        /* Distance squared with softening (prevents singularities) */
+        distSqr = X_position * X_position + Y_position * Y_position + Z_position * Z_position + SOFTENING_SQUARED;
+        
+        /* Inverse distance and inverse distance cubed */
+        invDist = 1.0f / sqrtf(distSqr);
+        invDistCube = invDist * invDist * invDist;
+        
+        /* Force factor: G * m_j * invDistCube */
+        s = Gravity_Coef * Mass[j] * invDistCube;
+        
+        /* Accumulate force components */
+        sumX += s * X_position;
+        sumY += s * Y_position;
+        sumZ += s * Z_position;
     }
+    
+    /* Update velocities */
     newX_velocity[i] += sumX * simulatetime_factor;
     newY_velocity[i] += sumY * simulatetime_factor;
     newZ_velocity[i] += sumZ * simulatetime_factor;
+    
+    /* Update positions with clamped velocities */
     X_axis[i] += clampf(newX_velocity[i], MIN_velocity, MAX_Velocity) * simulatetime_factor;
     Y_axis[i] += clampf(newY_velocity[i], MIN_velocity, MAX_Velocity) * simulatetime_factor;
     Z_axis[i] += clampf(newZ_velocity[i], MIN_velocity, MAX_Velocity) * simulatetime_factor;
+    
+    /* Store final velocities */
     X_Velocity[i] = newX_velocity[i];
     Y_Velocity[i] = newY_velocity[i];
     Z_Velocity[i] = newZ_velocity[i];
@@ -525,9 +552,20 @@ static void mousemotion(int x, int y, int on) {
         int dx = x - last_mouse_x;
         int dy = y - last_mouse_y;
         
-        /* Only rotate if not clicking on sliders */
-        int slider_max_y = (SLIDER_SIM_Y > SLIDER_PARTICLE_Y ? SLIDER_SIM_Y : SLIDER_PARTICLE_Y) + SLIDER_PARTICLE_HEIGHT;
-        if (!(y > SLIDER_SIM_Y && y < slider_max_y && x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH)) {
+        /* Only rotate if not clicking on sliders - check if in slider area */
+        int in_slider_area = 0;
+        /* Check simulation slider area */
+        if (y >= SLIDER_SIM_Y && y < SLIDER_SIM_Y + SLIDER_SIM_HEIGHT && 
+            x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH) {
+            in_slider_area = 1;
+        }
+        /* Check particle size slider area */
+        if (y >= SLIDER_PARTICLE_Y && y < SLIDER_PARTICLE_Y + SLIDER_PARTICLE_HEIGHT && 
+            x >= SLIDER_X_START && x <= SLIDER_X_START + SLIDER_WIDTH) {
+            in_slider_area = 1;
+        }
+        
+        if (!in_slider_area) {
             /* Rotate camera based on mouse movement */
             camAngleY += (float)dx * MOUSE_ROTATION_SENSITIVITY;  /* Horizontal rotation */
             camAngleX -= (float)dy * MOUSE_ROTATION_SENSITIVITY;  /* Vertical rotation (inverted) */
