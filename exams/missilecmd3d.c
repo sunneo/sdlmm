@@ -374,9 +374,9 @@ static int spawn_smoke_particle(Vector3 pos) {
     return particleId;
 }
 
-/* Glow colors for explosion particles - cyan/white like nbody */
-static const int explosionGlowColors[] = {0x00FFFF, 0x80FFFF, 0xC0FFFF, 0xFFFFFF};
-#define NUM_EXPLOSION_GLOW_COLORS 4
+/* Fire colors for explosion particles - yellow/red/orange */
+static const int explosionGlowColors[] = {0xFFFF00, 0xFFDD00, 0xFF8800, 0xFF4400, 0xFF0000};
+#define NUM_EXPLOSION_GLOW_COLORS 5
 
 static void spawn_explosion_particles(Vector3 pos, int count) {
     int i;
@@ -397,7 +397,7 @@ static void spawn_explosion_particles(Vector3 pos, int count) {
         );
         p->life = 1.0f;
         p->size = 0.2f + frandf() * 0.3f;
-        /* Glow colors like nbody - cyan/white */
+        /* Fire colors - yellow/red/orange */
         int colorIdx = rand() % NUM_EXPLOSION_GLOW_COLORS;
         p->color = explosionGlowColors[colorIdx];
         p->active = 1;
@@ -610,7 +610,7 @@ static void launch_missile(int screenX, int screenY) {
             float dz = tz - launcherPos.z;
             float len = sqrtf(dx * dx + dy * dy + dz * dz);
             if (len < 0.001f) len = 1.0f;
-            float speed = 0.15f;
+            float speed = 0.5f;
             ourMissiles[i].active = 1;
             ourMissiles[i].expl = 0;
             ourMissiles[i].pos = launcherPos;
@@ -648,9 +648,9 @@ static void draw_trajectory_lines(const Camera* camera) {
         (float)SCREENX / (float)SCREENY, 0.01f, 1000.0f);
     Matrix viewProj = matrix_multiply(&viewMatrix, &projectionMatrix);
     
-    /* Draw trajectory lines for non-exploding enemy missiles */
+    /* Draw trajectory lines for all active enemy missiles (even when exploding) */
     for (i = 0; i < MAX_ENEMY; i++) {
-        if (!enemies[i].alive || enemies[i].expl) continue;
+        if (!enemies[i].alive) continue;
         
         /* Draw line from starting position to current position (laser from sky) */
         int segments = 20;
@@ -805,8 +805,8 @@ static void drawScene() {
             for (i = 0; i < MAX_SMOKE_PARTICLES; i++) {
                 if (smokeParticles[i].active) {
                     particlePositions[idx] = smokeParticles[i].pos;
-                    /* Apply alpha based on life */
-                    int alpha = (int)(smokeParticles[i].life * 128);
+                    /* Apply alpha based on life - more transparent */
+                    int alpha = (int)(smokeParticles[i].life * 64);
                     particleColors[idx] = (alpha << 24) | smokeParticles[i].color;
                     idx++;
                 }
