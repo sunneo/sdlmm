@@ -308,14 +308,26 @@ static Mesh create_line_mesh(Vector3 start, Vector3 end, float width, int color)
     Mesh mesh;
     mesh.Vertices = (Vertex*)malloc(sizeof(Vertex) * 4);
     mesh.faces = (Face*)malloc(sizeof(Face) * 2);
+    
+    if (!mesh.Vertices || !mesh.faces) {
+        /* Handle allocation failure */
+        if (mesh.Vertices) free(mesh.Vertices);
+        if (mesh.faces) free(mesh.faces);
+        mesh.Vertices = NULL;
+        mesh.faces = NULL;
+        mesh.verticesCount = 0;
+        mesh.faceCount = 0;
+        return mesh;
+    }
+    
     mesh.verticesCount = 4;
     mesh.faceCount = 2;
     mesh.Rotation = vector3_zero();
     mesh.Position = vector3_zero();  /* Position already baked into vertices */
-    mesh.texture.internalBuffer = NULL;
-    mesh.texture.width = 0;
-    mesh.texture.height = 0;
     strcpy(mesh.name, "line");
+    
+    /* Generate a simple glow texture with the specified color */
+    generate_glow_texture(&mesh.texture, color);
     
     /* Calculate direction vector */
     Vector3 dir = vector3_subtract(&end, &start);
@@ -816,11 +828,22 @@ static void drawScene() {
     }
     ensureRenderCap(needed);
     
-    /* Free trajectory line meshes from previous frame (they have allocated vertices) */
+    /* Free trajectory line meshes and textures from previous frame */
+    /* Must be done BEFORE resetting renderMeshCount */
     for (i = 0; i < renderMeshCount; i++) {
         if (strcmp(renderMeshes[i].name, "line") == 0) {
-            if (renderMeshes[i].Vertices) free(renderMeshes[i].Vertices);
-            if (renderMeshes[i].faces) free(renderMeshes[i].faces);
+            if (renderMeshes[i].Vertices) {
+                free(renderMeshes[i].Vertices);
+                renderMeshes[i].Vertices = NULL;
+            }
+            if (renderMeshes[i].faces) {
+                free(renderMeshes[i].faces);
+                renderMeshes[i].faces = NULL;
+            }
+            if (renderMeshes[i].texture.internalBuffer) {
+                free(renderMeshes[i].texture.internalBuffer);
+                renderMeshes[i].texture.internalBuffer = NULL;
+            }
         }
     }
     
