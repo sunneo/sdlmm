@@ -45,6 +45,9 @@
 #define TRAJECTORY_MIN_ALPHA 50
 #define TRAJECTORY_ALPHA_RANGE 50
 
+/* Smoke particle alpha constant */
+#define SMOKE_MAX_ALPHA 64
+
 /* --- Data structures --- */
 typedef struct {
     Vector3 pos;
@@ -806,7 +809,7 @@ static void drawScene() {
                 if (smokeParticles[i].active) {
                     particlePositions[idx] = smokeParticles[i].pos;
                     /* Apply alpha based on life - more transparent */
-                    int alpha = (int)(smokeParticles[i].life * 64);
+                    int alpha = (int)(smokeParticles[i].life * SMOKE_MAX_ALPHA);
                     particleColors[idx] = (alpha << 24) | smokeParticles[i].color;
                     idx++;
                 }
