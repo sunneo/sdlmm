@@ -329,6 +329,10 @@ static void init_scene_meshes() {
     smokeTexture = texture_create_gaussian(32);
     explosionTexture = texture_create_gaussian(32);
     
+    if (!smokeTexture || !explosionTexture) {
+        fprintf(stderr, "Failed to create particle textures\n");
+    }
+    
     /* Initialize particle systems */
     memset(smokeParticles, 0, sizeof(smokeParticles));
     memset(explosionParticles, 0, sizeof(explosionParticles));
@@ -764,7 +768,7 @@ static void drawScene() {
             if (smokeParticles[i].active) particleCount++;
         }
         
-        if (particleCount > 0) {
+        if (particleCount > 0 && smokeTexture) {
             particlePositions = (Vector3*)malloc(sizeof(Vector3) * particleCount);
             particleColors = (int*)malloc(sizeof(int) * particleCount);
             int idx = 0;
@@ -801,7 +805,7 @@ static void drawScene() {
             if (explosionParticles[i].active) particleCount++;
         }
         
-        if (particleCount > 0) {
+        if (particleCount > 0 && explosionTexture) {
             particlePositions = (Vector3*)malloc(sizeof(Vector3) * particleCount);
             particleColors = (int*)malloc(sizeof(int) * particleCount);
             int idx = 0;
