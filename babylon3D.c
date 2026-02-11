@@ -1135,31 +1135,34 @@ void device_render_particles(Device* dev, const Camera* camera, const Vector3* p
     for (int i = 0; i < particleCount; i++) {
         Vector3 worldPos = positions[i];
         
-        // Transform to clip space
+        // Transform to view space first to get actual distance
+        Vector3 viewPos = vector3_transform_coordinates(&worldPos, &viewMatrix);
+        
+        // In LH system, positive Z is forward from camera
+        // Skip particles behind camera or too close
+        if (viewPos.z <= 0.1f) continue;
+        
+        // Transform to clip space (already includes perspective divide)
         Vector3 clipPos = vector3_transform_coordinates(&worldPos, &viewProj);
         
-        // Check if behind camera
-        Vector3 viewPos = vector3_transform_coordinates(&worldPos, &viewMatrix);
-        if (viewPos.z < 0.1f) continue;  // Skip particles behind or very close to camera
+        // clipPos is now in NDC space (-1 to 1)
+        // Check if roughly on screen (with some margin for large sprites)
+        if (clipPos.x < -2.0f || clipPos.x > 2.0f || clipPos.y < -2.0f || clipPos.y > 2.0f) {
+            continue;
+        }
         
         // Project to screen space
         float screenX = (clipPos.x + 1.0f) * 0.5f * dev->workingWidth;
         float screenY = (1.0f - clipPos.y) * 0.5f * dev->workingHeight;
         
-        // Skip if off-screen (with margin)
-        float margin = spriteSize * 2.0f;
-        if (screenX < -margin || screenX >= dev->workingWidth + margin ||
-            screenY < -margin || screenY >= dev->workingHeight + margin) {
-            continue;
-        }
-        
         // Scale sprite size based on distance (perspective)
-        float distScale = 1.0f / viewPos.z;
-        float finalSize = spriteSize * distScale * 100.0f;  // Scale factor for visibility
+        // Larger distance = smaller sprite
+        float distScale = 50.0f / viewPos.z;  // Adjusted: base size at distance 50
+        float finalSize = spriteSize * distScale;
         
-        // Clamp size for performance
-        if (finalSize < 2.0f) finalSize = 2.0f;
-        if (finalSize > 100.0f) finalSize = 100.0f;
+        // Clamp size for visibility and performance
+        if (finalSize < 3.0f) finalSize = 3.0f;
+        if (finalSize > 80.0f) finalSize = 80.0f;
         
         Vector3 screenPos = vector3(screenX, screenY, viewPos.z);
         int particleColor = colors ? colors[i] : 0xFFFFFF;
