@@ -547,9 +547,9 @@ static void update_our_missiles() {
         if (!ourMissiles[i].expl) {
             /* Spawn smoke particles periodically - limit to 5 particles */
             ourMissiles[i].smokeTick++;
-            if (ourMissiles[i].smokeTick % 2 == 0 && ourMissiles[i].smokeCount < 5) {
+            if (ourMissiles[i].smokeTick % 2 == 0) {
                 int particleId = spawn_smoke_particle(ourMissiles[i].pos);
-                /* If we have old smoke particles, deactivate the oldest one */
+                /* If we already have 5 smoke particles, deactivate the oldest one */
                 if (ourMissiles[i].smokeCount >= 5) {
                     smokeParticles[ourMissiles[i].smokeParticleIds[0]].active = 0;
                     /* Shift the array */
