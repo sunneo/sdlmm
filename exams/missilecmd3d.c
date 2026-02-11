@@ -743,11 +743,14 @@ static void draw_trajectory_lines(const Camera* camera) {
         Vector3 trajStart = enemies[i].from;
         if (trajStart.y > 10.0f) {
             /* If original start is too high, calculate intersection point at y=10 */
-            float t = (10.0f - enemies[i].from.y) / (enemies[i].pos.y - enemies[i].from.y);
-            if (t > 0.0f && t < 1.0f) {
-                trajStart.x = enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t;
-                trajStart.y = 10.0f;
-                trajStart.z = enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t;
+            float denom = enemies[i].pos.y - enemies[i].from.y;
+            if (denom < -0.001f) {  /* Only if moving downward (negative y direction) */
+                float t = (10.0f - enemies[i].from.y) / denom;
+                if (t > 0.0f && t < 1.0f) {
+                    trajStart.x = enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t;
+                    trajStart.y = 10.0f;
+                    trajStart.z = enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t;
+                }
             }
         }
         
