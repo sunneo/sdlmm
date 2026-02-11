@@ -868,6 +868,9 @@ static void drawScene() {
 
     device_render(m_device, &camera, renderMeshes, renderMeshCount, &lightPos);
 
+    /* Draw trajectory lines after 3D meshes */
+    draw_trajectory_lines(&camera);
+    
     /* Render smoke particles */
     {
         Vector3* particlePositions;
@@ -941,9 +944,6 @@ static void drawScene() {
             free(particleColors);
         }
     }
-
-    /* Draw trajectory lines after all particle effects to prevent them from being overwritten */
-    draw_trajectory_lines(&camera);
 
     /* HUD overlay (drawn after 3D render) */
     {
