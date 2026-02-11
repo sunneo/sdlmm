@@ -735,37 +735,20 @@ static void draw_trajectory_lines(const Camera* camera) {
     /* Draw trajectory lines for all active enemy missiles */
     for (i = 0; i < MAX_ENEMY; i++) {
         if (!enemies[i].alive) continue;
-        /* Only draw trajectory when missile is visible (not too high in the sky) */
-        if (enemies[i].pos.y > 10.0f) continue;  /* Skip missiles still high in the sky */
         
-        /* Calculate visible trajectory start point (limit to visible area) */
-        Vector3 trajStart = enemies[i].from;
-        if (trajStart.y > 10.0f) {
-            /* If original start is too high, calculate intersection point at y=10 */
-            float denom = enemies[i].pos.y - enemies[i].from.y;
-            if (denom < -0.001f) {  /* Only if moving downward (negative y direction) */
-                float t = (10.0f - enemies[i].from.y) / denom;
-                if (t > 0.0f && t < 1.0f) {
-                    trajStart.x = enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t;
-                    trajStart.y = 10.0f;
-                    trajStart.z = enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t;
-                }
-            }
-        }
-        
-        /* Project start and end points to screen space */
-        Vector3 clipStart = vector3_transform_coordinates(&trajStart, &viewProj);
+        /* Directly project start and end points to screen space - no complex calculations */
+        Vector3 clipStart = vector3_transform_coordinates(&enemies[i].from, &viewProj);
         Vector3 clipEnd = vector3_transform_coordinates(&enemies[i].pos, &viewProj);
         
+        /* Convert to screen coordinates */
         float screenX1 = (clipStart.x + 1.0f) * 0.5f * SCREENX;
         float screenY1 = (1.0f - clipStart.y) * 0.5f * SCREENY;
         float screenX2 = (clipEnd.x + 1.0f) * 0.5f * SCREENX;
         float screenY2 = (1.0f - clipEnd.y) * 0.5f * SCREENY;
         
-        /* Draw single line in screen space (simpler and more accurate) */
-        if (screenX1 >= 0 && screenX1 < SCREENX && screenY1 >= 0 && screenY1 < SCREENY &&
-            screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
-            int color = (100 << 24) | 0x40ff40;  /* Green with alpha */
+        /* Draw line if both points are on screen */
+        if (screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
+            int color = (200 << 24) | 0x00ffff;  /* Bright cyan */
             drawline((int)screenX1, (int)screenY1, (int)screenX2, (int)screenY2, color);
         }
     }
@@ -774,19 +757,19 @@ static void draw_trajectory_lines(const Camera* camera) {
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (!ourMissiles[i].active) continue;
         
-        /* Project start and end points to screen space */
+        /* Directly project start and end points to screen space */
         Vector3 clipStart = vector3_transform_coordinates(&ourMissiles[i].launchPos, &viewProj);
         Vector3 clipEnd = vector3_transform_coordinates(&ourMissiles[i].pos, &viewProj);
         
+        /* Convert to screen coordinates */
         float screenX1 = (clipStart.x + 1.0f) * 0.5f * SCREENX;
         float screenY1 = (1.0f - clipStart.y) * 0.5f * SCREENY;
         float screenX2 = (clipEnd.x + 1.0f) * 0.5f * SCREENX;
         float screenY2 = (1.0f - clipEnd.y) * 0.5f * SCREENY;
         
-        /* Draw single line in screen space */
-        if (screenX1 >= 0 && screenX1 < SCREENX && screenY1 >= 0 && screenY1 < SCREENY &&
-            screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
-            int color = (100 << 24) | 0xffff80;  /* Yellow-white with alpha */
+        /* Draw line if end point is on screen */
+        if (screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
+            int color = (200 << 24) | 0xffff00;  /* Bright yellow */
             drawline((int)screenX1, (int)screenY1, (int)screenX2, (int)screenY2, color);
         }
     }
