@@ -12,7 +12,7 @@
  *
  * Controls:
  *   0-3 : Change display mode (wireframe/solid/mixed)
- *   C   : Toggle camera center tracking (with smooth transition)
+ *   C   : Snap camera to current cluster center (smooth transition, no shake)
  *   r/R : Toggle random simulation factor
  *   h/H : Toggle help overlay
  *   +/- : Zoom camera in/out
@@ -85,6 +85,14 @@ static float target_cam_angle_x = 0.3f;  /* Target angles for smooth transition 
 static float target_cam_angle_y = 0.0f;
 static float target_cam_dist = 50.0f;
 static const float cam_transition_speed = 0.1f;  /* Speed of camera transitions */
+/* Snapshot of cluster center when 'C' is pressed - prevents camera shake */
+static float snapshot_center_x = 0.0f;
+static float snapshot_center_y = 0.0f;
+static float snapshot_center_z = 0.0f;
+/* Current cluster center (updated each frame) */
+static float current_center_x = 0.0f;
+static float current_center_y = 0.0f;
+static float current_center_z = 0.0f;
 /* Mouse control */
 static int mouse_down = 0;
 static int last_mouse_x = 0;
@@ -327,21 +335,22 @@ static void freeParticles() {
 /**
  * Update particle positions from physics simulation.
  * Maps simulation coordinates to 3D world space.
- * When camera tracking is enabled, centers particles around their center of mass.
+ * When camera tracking is enabled, centers particles around the snapshot center
+ * captured when 'C' was pressed (not the continuously moving cluster center).
  */
 static void updateParticlePositions(float avgX, float avgY, float avgZ) {
     int i;
     float scale = 0.1f;  /* Scale factor for world coordinates */
     
-    /* When camera tracking is enabled, centralize particles around center of mass */
+    /* When camera tracking is enabled, centralize particles around snapshot center */
     int should_centralize = camera_tracking;
     
     for (i = 0; i < SZ; i++) {
         if (should_centralize) {
             particlePositions[i] = vector3(
-                (X_axis[i] - avgX) * scale,
-                (Y_axis[i] - avgY) * scale,
-                (Z_axis[i] - avgZ) * scale
+                (X_axis[i] - snapshot_center_x) * scale,
+                (Y_axis[i] - snapshot_center_y) * scale,
+                (Z_axis[i] - snapshot_center_z) * scale
             );
         } else {
             particlePositions[i] = vector3(
@@ -524,6 +533,11 @@ static int main_run(int argc, char** argv) {
         /* This matches NVIDIA CUDA sample behavior and avoids extra O(n²) traversal */
         findClusterCenter(&avgX, &avgY, &avgZ);
         
+        /* Store current cluster center globally for camera tracking snapshot */
+        current_center_x = avgX;
+        current_center_y = avgY;
+        current_center_z = avgZ;
+        
         fps_time_2 = getDoubleTime();
         draw3D(loop, LOOP, fps_time_2 - fps_time_1, avgX, avgY, avgZ);
     }
@@ -545,6 +559,10 @@ static void kbfnc(int k, int ctrl, int on) {
                 /* Toggle camera tracking mode */
                 camera_tracking = !camera_tracking;
                 if (camera_tracking) {
+                    /* Snapshot current cluster center to prevent camera shake */
+                    snapshot_center_x = current_center_x;
+                    snapshot_center_y = current_center_y;
+                    snapshot_center_z = current_center_z;
                     /* Set target to center view (looking down slightly) */
                     target_cam_angle_x = 0.3f;
                     target_cam_angle_y = 0.0f;
