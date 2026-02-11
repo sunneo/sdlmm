@@ -5,7 +5,7 @@
  * the Babylon3D software rendering engine.
  *
  * Buildings are rendered as 3D cubes, missiles as elongated shapes,
- * and explosions as expanding spheres in 3D space.
+ * and explosions as particle effects in 3D space.
  *
  * Controls:
  *   Mouse click : Launch interceptor missile toward cursor position
