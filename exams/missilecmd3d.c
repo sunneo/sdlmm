@@ -769,6 +769,48 @@ static void draw_trajectory_lines(const Camera* camera) {
             }
         }
     }
+    
+    /* Draw trajectory lines for our defensive missiles */
+    for (i = 0; i < MAX_OUR_MISSILE; i++) {
+        if (!ourMissiles[i].active) continue;
+        
+        /* Draw line from launch position to current position */
+        int segments = 20;
+        for (j = 0; j < segments; j++) {
+            float t1 = (float)j / segments;
+            float t2 = (float)(j + 1) / segments;
+            
+            Vector3 p1 = vector3(
+                ourMissiles[i].launchPos.x + (ourMissiles[i].pos.x - ourMissiles[i].launchPos.x) * t1,
+                ourMissiles[i].launchPos.y + (ourMissiles[i].pos.y - ourMissiles[i].launchPos.y) * t1,
+                ourMissiles[i].launchPos.z + (ourMissiles[i].pos.z - ourMissiles[i].launchPos.z) * t1
+            );
+            Vector3 p2 = vector3(
+                ourMissiles[i].launchPos.x + (ourMissiles[i].pos.x - ourMissiles[i].launchPos.x) * t2,
+                ourMissiles[i].launchPos.y + (ourMissiles[i].pos.y - ourMissiles[i].launchPos.y) * t2,
+                ourMissiles[i].launchPos.z + (ourMissiles[i].pos.z - ourMissiles[i].launchPos.z) * t2
+            );
+            
+            /* Transform to screen space */
+            Vector3 clip1 = vector3_transform_coordinates(&p1, &viewProj);
+            Vector3 clip2 = vector3_transform_coordinates(&p2, &viewProj);
+            
+            /* Project to screen */
+            float screenX1 = (clip1.x + 1.0f) * 0.5f * SCREENX;
+            float screenY1 = (1.0f - clip1.y) * 0.5f * SCREENY;
+            float screenX2 = (clip2.x + 1.0f) * 0.5f * SCREENX;
+            float screenY2 = (1.0f - clip2.y) * 0.5f * SCREENY;
+            
+            /* Check if on screen */
+            if (screenX1 >= 0 && screenX1 < SCREENX && screenY1 >= 0 && screenY1 < SCREENY &&
+                screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
+                /* Draw with transparency - yellow/white color for our missiles */
+                int alpha = (int)(TRAJECTORY_MIN_ALPHA + TRAJECTORY_ALPHA_RANGE * (1.0f - t1));  /* Fade along trajectory */
+                int color = (alpha << 24) | 0xffff80;  /* Yellow-white with alpha */
+                drawline((int)screenX1, (int)screenY1, (int)screenX2, (int)screenY2, color);
+            }
+        }
+    }
 }
 
 /* --- Build the render mesh list and draw --- */
