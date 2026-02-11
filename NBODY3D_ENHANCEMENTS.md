@@ -22,9 +22,9 @@ The nbody3d simulation has been enhanced with:
 
 **New Variables:**
 ```c
-static int mouseDown = 0;
-static int lastMouseX = 0;
-static int lastMouseY = 0;
+static int mouse_down = 0;
+static int last_mouse_x = 0;
+static int last_mouse_y = 0;
 ```
 
 **Key Functions:**
@@ -43,11 +43,11 @@ static int lastMouseY = 0;
 
 **New Variables:**
 ```c
-static int cameraTracking = 0;
-static float targetCamAngleX = 0.3f;
-static float targetCamAngleY = 0.0f;
-static float targetCamDist = 50.0f;
-static const float camTransitionSpeed = 0.1f;  /* 10% per frame */
+static int camera_tracking = 0;
+static float target_cam_angle_x = 0.3f;
+static float target_cam_angle_y = 0.0f;
+static float target_cam_dist = 50.0f;
+static const float cam_transition_speed = 0.1f;  /* 10% per frame */
 ```
 
 **Key Features:**
@@ -70,7 +70,7 @@ static const float camTransitionSpeed = 0.1f;  /* 10% per frame */
 
 **New Variable:**
 ```c
-static float particleSize = 15.0f;
+static float particle_size = 15.0f;
 ```
 
 **UI Elements:**
@@ -79,7 +79,7 @@ static float particleSize = 15.0f;
 - Display: Shows current particle size value on HUD
 
 **Updated Functions:**
-- `draw3D()`: Changed hardcoded 15.0f to `particleSize` variable
+- `draw3D()`: Changed hardcoded 15.0f to `particle_size` variable
 - `mousefnc()`: Added slider handling for particle size adjustment
 
 ### 4. UI Improvements
@@ -130,10 +130,10 @@ Line 145: [h]help [+/-]zoom [arrows/mouse]rotate [C]track
 
 ### Camera Transition Algorithm
 ```c
-if (cameraTracking) {
-    camAngleX += (targetCamAngleX - camAngleX) * camTransitionSpeed;
-    camAngleY += (targetCamAngleY - camAngleY) * camTransitionSpeed;
-    camDist += (targetCamDist - camDist) * camTransitionSpeed;
+if (camera_tracking) {
+    camAngleX += (target_cam_angle_x - camAngleX) * cam_transition_speed;
+    camAngleY += (target_cam_angle_y - camAngleY) * cam_transition_speed;
+    camDist += (target_cam_dist - camDist) * cam_transition_speed;
 }
 ```
 - Uses exponential smoothing with 10% transition speed

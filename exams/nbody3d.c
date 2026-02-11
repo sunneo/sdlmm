@@ -55,17 +55,17 @@ static float camDist = 50.0f;
 static float camAngleX = 0.3f;
 static float camAngleY = 0.0f;
 /* Camera tracking */
-static int cameraTracking = 0;  /* Toggle camera center tracking */
-static float targetCamAngleX = 0.3f;  /* Target angles for smooth transition */
-static float targetCamAngleY = 0.0f;
-static float targetCamDist = 50.0f;
-static const float camTransitionSpeed = 0.1f;  /* Speed of camera transitions */
+static int camera_tracking = 0;  /* Toggle camera center tracking */
+static float target_cam_angle_x = 0.3f;  /* Target angles for smooth transition */
+static float target_cam_angle_y = 0.0f;
+static float target_cam_dist = 50.0f;
+static const float cam_transition_speed = 0.1f;  /* Speed of camera transitions */
 /* Mouse control */
-static int mouseDown = 0;
-static int lastMouseX = 0;
-static int lastMouseY = 0;
+static int mouse_down = 0;
+static int last_mouse_x = 0;
+static int last_mouse_y = 0;
 /* Particle size control */
-static float particleSize = 15.0f;  /* Default particle size */
+static float particle_size = 15.0f;  /* Default particle size */
 
 /* Physics arrays */
 static float *X_axis, *Y_axis, *Z_axis;
@@ -277,10 +277,10 @@ static void updateParticlePositions(float avgX, float avgY, float avgZ) {
     float scale = 0.1f;  /* Scale factor for world coordinates */
     
     /* When camera tracking is enabled, centralize particles around center of mass */
-    int shouldCentralize = cameraTracking;
+    int should_centralize = camera_tracking;
     
     for (i = 0; i < SZ; i++) {
-        if (shouldCentralize) {
+        if (should_centralize) {
             particlePositions[i] = vector3(
                 (X_axis[i] - avgX) * scale,
                 (Y_axis[i] - avgY) * scale,
@@ -302,16 +302,16 @@ static void updateParticlePositions(float avgX, float avgY, float avgZ) {
  */
 static void updateCamera() {
     /* Smooth camera transition */
-    if (cameraTracking) {
+    if (camera_tracking) {
         /* Gradually move towards target angles */
-        camAngleX += (targetCamAngleX - camAngleX) * camTransitionSpeed;
-        camAngleY += (targetCamAngleY - camAngleY) * camTransitionSpeed;
-        camDist += (targetCamDist - camDist) * camTransitionSpeed;
+        camAngleX += (target_cam_angle_x - camAngleX) * cam_transition_speed;
+        camAngleY += (target_cam_angle_y - camAngleY) * cam_transition_speed;
+        camDist += (target_cam_dist - camDist) * cam_transition_speed;
     } else {
         /* Update targets to match current position when not tracking */
-        targetCamAngleX = camAngleX;
-        targetCamAngleY = camAngleY;
-        targetCamDist = camDist;
+        target_cam_angle_x = camAngleX;
+        target_cam_angle_y = camAngleY;
+        target_cam_dist = camDist;
     }
     
     camera.Position = vector3(
@@ -348,7 +348,7 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
 
     /* Render all particles with additive blending */
     device_render_particles(m_device, &camera, particlePositions, particleColors, 
-                           SZ, particleSize, particleTexture, 1);  /* 1 = additive blending */
+                           SZ, particle_size, particleTexture, 1);  /* 1 = additive blending */
 
     /* Draw HUD overlay */
     if (showhelp) {
@@ -362,15 +362,15 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
         fillrect(320, 25, 400 * (simulatetime_factor / 2.0f), 15, 0xfdfd00);
         drawrect(320, 25, 400, 15, 0xffffff);
         
-        sprintf(buf, "particle size: %-3.1f", particleSize);
+        sprintf(buf, "particle size: %-3.1f", particle_size);
         drawtext(buf, 5, 65, 0xffffff);
         /* Draw particle size slider (size range 5-40) */
-        fillrect(320, 65, 400 * ((particleSize - 5.0f) / 35.0f), 15, 0x00ff00);
+        fillrect(320, 65, 400 * ((particle_size - 5.0f) / 35.0f), 15, 0x00ff00);
         drawrect(320, 65, 400, 15, 0xffffff);
         
         sprintf(buf, "cam dist:%.1f angle:(%.2f,%.2f)", camDist, camAngleX, camAngleY);
         drawtext(buf, 5, 85, 0xffffff);
-        sprintf(buf, "camera tracking: %s[C]", cameraTracking ? "on" : "off");
+        sprintf(buf, "camera tracking: %s[C]", camera_tracking ? "on" : "off");
         drawtext(buf, 5, 105, 0xffffff);
 	if(hasDebugCube){
            sprintf(buf, "debug cube: %s[d]", showDebugCube ? "on" : "off");
@@ -431,12 +431,12 @@ static void kbfnc(int k, int ctrl, int on) {
                 showmode = k - '0'; break;
             case 'c': case 'C': 
                 /* Toggle camera tracking mode */
-                cameraTracking = !cameraTracking;
-                if (cameraTracking) {
+                camera_tracking = !camera_tracking;
+                if (camera_tracking) {
                     /* Set target to center view (looking down slightly) */
-                    targetCamAngleX = 0.3f;
-                    targetCamAngleY = 0.0f;
-                    targetCamDist = 50.0f;
+                    target_cam_angle_x = 0.3f;
+                    target_cam_angle_y = 0.0f;
+                    target_cam_dist = 50.0f;
                 }
                 break;
             case 'r': case 'R': random_simulatefactor = !random_simulatefactor; break;
@@ -444,29 +444,29 @@ static void kbfnc(int k, int ctrl, int on) {
             case 'd': case 'D': showDebugCube = !showDebugCube; break;  /* Toggle debug cube */
             case '+': case '=': 
                 if (camDist > 5.0f) camDist -= 3.0f; 
-                cameraTracking = 0;  /* Disable tracking on manual control */
+                camera_tracking = 0;  /* Disable tracking on manual control */
                 break;
             case '-': case '_': 
                 camDist += 3.0f; 
-                cameraTracking = 0;  /* Disable tracking on manual control */
+                camera_tracking = 0;  /* Disable tracking on manual control */
                 break;
         }
         /* Arrow keys - SDLK values */
         if (k == 273) {
             camAngleX += 0.1f;       /* Up */
-            cameraTracking = 0;  /* Disable tracking on manual control */
+            camera_tracking = 0;  /* Disable tracking on manual control */
         }
         else if (k == 274) {
             camAngleX -= 0.1f;  /* Down */
-            cameraTracking = 0;  /* Disable tracking on manual control */
+            camera_tracking = 0;  /* Disable tracking on manual control */
         }
         else if (k == 276) {
             camAngleY -= 0.1f;  /* Left */
-            cameraTracking = 0;  /* Disable tracking on manual control */
+            camera_tracking = 0;  /* Disable tracking on manual control */
         }
         else if (k == 275) {
             camAngleY += 0.1f;  /* Right */
-            cameraTracking = 0;  /* Disable tracking on manual control */
+            camera_tracking = 0;  /* Disable tracking on manual control */
         }
     }
 }
@@ -485,27 +485,27 @@ static void mousefnc(int x, int y, int on, int btn) {
         else if (y > 65 && y < 80 && x >= 320 && x <= 720) {
             float value = 5.0f + 35.0f * ((float)(x - 320)) / 400;
             if (value >= 5.0f && value <= 40.0f) {
-                particleSize = value;
+                particle_size = value;
             }
         }
         /* Camera rotation - mouse drag outside slider areas */
         else {
-            if (!mouseDown) {
-                mouseDown = 1;
-                lastMouseX = x;
-                lastMouseY = y;
+            if (!mouse_down) {
+                mouse_down = 1;
+                last_mouse_x = x;
+                last_mouse_y = y;
             }
         }
     } else {
-        mouseDown = 0;
+        mouse_down = 0;
     }
 }
 
 static void mousemotion(int x, int y, int on) {
     /* Handle mouse dragging for camera rotation */
-    if (mouseDown && on) {
-        int dx = x - lastMouseX;
-        int dy = y - lastMouseY;
+    if (mouse_down && on) {
+        int dx = x - last_mouse_x;
+        int dy = y - last_mouse_y;
         
         /* Only rotate if not clicking on sliders */
         if (!(y > 25 && y < 80 && x >= 320 && x <= 720)) {
@@ -517,11 +517,11 @@ static void mousemotion(int x, int y, int on) {
             if (camAngleX > 1.5f) camAngleX = 1.5f;
             if (camAngleX < -1.5f) camAngleX = -1.5f;
             
-            cameraTracking = 0;  /* Disable tracking on manual control */
+            camera_tracking = 0;  /* Disable tracking on manual control */
         }
         
-        lastMouseX = x;
-        lastMouseY = y;
+        last_mouse_x = x;
+        last_mouse_y = y;
     }
     /* Also handle slider dragging */
     mousefnc(x, y, on, 0);
