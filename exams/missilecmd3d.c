@@ -303,6 +303,67 @@ static void fill_cube(Mesh* mesh, float sx, float sy, float sz) {
     }
 }
 
+/* --- Create a line mesh as a thin quad (for trajectory lines) --- */
+static Mesh create_line_mesh(Vector3 start, Vector3 end, float width, int color) {
+    Mesh mesh;
+    mesh.Vertices = (Vertex*)malloc(sizeof(Vertex) * 4);
+    mesh.faces = (Face*)malloc(sizeof(Face) * 2);
+    mesh.verticesCount = 4;
+    mesh.faceCount = 2;
+    mesh.Rotation = vector3_zero();
+    mesh.Position = vector3_zero();  /* Position already baked into vertices */
+    mesh.texture.internalBuffer = NULL;
+    mesh.texture.width = 0;
+    mesh.texture.height = 0;
+    strcpy(mesh.name, "line");
+    
+    /* Calculate direction vector */
+    Vector3 dir = vector3_subtract(&end, &start);
+    float len = sqrtf(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    if (len < 0.001f) len = 0.001f;
+    dir.x /= len; dir.y /= len; dir.z /= len;
+    
+    /* Calculate perpendicular vector for width */
+    /* Use camera up vector (0,1,0) to create a billboard effect */
+    Vector3 up = vector3(0, 1, 0);
+    Vector3 perp = vector3_cross(&dir, &up);
+    float plen = sqrtf(perp.x * perp.x + perp.y * perp.y + perp.z * perp.z);
+    if (plen < 0.001f) {
+        /* If line is vertical, use a different perpendicular */
+        up = vector3(1, 0, 0);
+        perp = vector3_cross(&dir, &up);
+        plen = sqrtf(perp.x * perp.x + perp.y * perp.y + perp.z * perp.z);
+    }
+    perp.x = (perp.x / plen) * width * 0.5f;
+    perp.y = (perp.y / plen) * width * 0.5f;
+    perp.z = (perp.z / plen) * width * 0.5f;
+    
+    /* Create quad vertices */
+    mesh.Vertices[0].Coordinates = vector3(start.x - perp.x, start.y - perp.y, start.z - perp.z);
+    mesh.Vertices[1].Coordinates = vector3(start.x + perp.x, start.y + perp.y, start.z + perp.z);
+    mesh.Vertices[2].Coordinates = vector3(end.x - perp.x, end.y - perp.y, end.z - perp.z);
+    mesh.Vertices[3].Coordinates = vector3(end.x + perp.x, end.y + perp.y, end.z + perp.z);
+    
+    /* Normal faces camera (billboard) */
+    Vector3 normal = perp;
+    float nlen = sqrtf(normal.x * normal.x + normal.y * normal.y + normal.z * normal.z);
+    if (nlen > 0.001f) {
+        normal.x /= nlen; normal.y /= nlen; normal.z /= nlen;
+    }
+    
+    for (int i = 0; i < 4; i++) {
+        mesh.Vertices[i].Normal = normal;
+        mesh.Vertices[i].WorldCoordinates = vector3_zero();
+        mesh.Vertices[i].TextureCoordinates = vector3((i % 2) ? 1.0f : 0.0f, (i >= 2) ? 1.0f : 0.0f, 0);
+    }
+    
+    /* Create two triangles */
+    mesh.faces[0].A = 0; mesh.faces[0].B = 1; mesh.faces[0].C = 2;
+    mesh.faces[1].A = 1; mesh.faces[1].B = 3; mesh.faces[1].C = 2;
+    
+    return mesh;
+}
+
 /* --- Ensure render mesh array capacity --- */
 static void ensureRenderCap(int needed) {
     if (needed > renderMeshCap) {
@@ -721,63 +782,6 @@ static void check_reinit() {
 }
 
 /* --- Draw trajectory lines for enemy missiles --- */
-static void draw_trajectory_lines(const Camera* camera) {
-    int i, j;
-    Vector3 up = vector3_up();
-    Matrix viewMatrix = matrix_LookAtLH(&camera->Position, &camera->Target, &up);
-    Matrix projectionMatrix = matrix_PerspectiveFovLH(0.78f, 
-        (float)SCREENX / (float)SCREENY, 0.01f, 1000.0f);
-    Matrix viewProj = matrix_multiply(&viewMatrix, &projectionMatrix);
-    
-    /* Enable alpha blending for trajectory lines */
-    setusealpha(1);
-    
-    /* Draw trajectory lines for all active enemy missiles */
-    for (i = 0; i < MAX_ENEMY; i++) {
-        if (!enemies[i].alive) continue;
-        
-        /* Directly project start and end points to screen space - no complex calculations */
-        Vector3 clipStart = vector3_transform_coordinates(&enemies[i].from, &viewProj);
-        Vector3 clipEnd = vector3_transform_coordinates(&enemies[i].pos, &viewProj);
-        
-        /* Convert to screen coordinates - MATCH device_project formula exactly */
-        float screenX1 = clipStart.x * SCREENX + SCREENX / 2.0f;
-        float screenY1 = -clipStart.y * SCREENY + SCREENY / 2.0f;
-        float screenX2 = clipEnd.x * SCREENX + SCREENX / 2.0f;
-        float screenY2 = -clipEnd.y * SCREENY + SCREENY / 2.0f;
-        
-        /* Draw line if both points are on screen */
-        if (screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
-            int color = (200 << 24) | 0x00ffff;  /* Bright cyan */
-            drawline((int)screenX1, (int)screenY1, (int)screenX2, (int)screenY2, color);
-        }
-    }
-    
-    /* Draw trajectory lines for our defensive missiles */
-    for (i = 0; i < MAX_OUR_MISSILE; i++) {
-        if (!ourMissiles[i].active) continue;
-        
-        /* Directly project start and end points to screen space */
-        Vector3 clipStart = vector3_transform_coordinates(&ourMissiles[i].launchPos, &viewProj);
-        Vector3 clipEnd = vector3_transform_coordinates(&ourMissiles[i].pos, &viewProj);
-        
-        /* Convert to screen coordinates - MATCH device_project formula exactly */
-        float screenX1 = clipStart.x * SCREENX + SCREENX / 2.0f;
-        float screenY1 = -clipStart.y * SCREENY + SCREENY / 2.0f;
-        float screenX2 = clipEnd.x * SCREENX + SCREENX / 2.0f;
-        float screenY2 = -clipEnd.y * SCREENY + SCREENY / 2.0f;
-        
-        /* Draw line if end point is on screen */
-        if (screenX2 >= 0 && screenX2 < SCREENX && screenY2 >= 0 && screenY2 < SCREENY) {
-            int color = (200 << 24) | 0xffff00;  /* Bright yellow */
-            drawline((int)screenX1, (int)screenY1, (int)screenX2, (int)screenY2, color);
-        }
-    }
-    
-    /* Disable alpha blending after drawing trajectory lines */
-    setusealpha(0);
-}
-
 /* --- Build the render mesh list and draw --- */
 static void drawScene() {
     int i;
@@ -803,7 +807,23 @@ static void drawScene() {
     for (i = 0; i < MAX_OUR_MISSILE; i++) {
         if (ourMissiles[i].active) needed++;
     }
+    /* Trajectory lines (one per active enemy missile + one per active our missile) */
+    for (i = 0; i < MAX_ENEMY; i++) {
+        if (enemies[i].alive) needed++;
+    }
+    for (i = 0; i < MAX_OUR_MISSILE; i++) {
+        if (ourMissiles[i].active) needed++;
+    }
     ensureRenderCap(needed);
+    
+    /* Free trajectory line meshes from previous frame (they have allocated vertices) */
+    for (i = 0; i < renderMeshCount; i++) {
+        if (strcmp(renderMeshes[i].name, "line") == 0) {
+            if (renderMeshes[i].Vertices) free(renderMeshes[i].Vertices);
+            if (renderMeshes[i].faces) free(renderMeshes[i].faces);
+        }
+    }
+    
     renderMeshCount = 0;
 
     /* Ground: a flat wide cube */
@@ -840,6 +860,21 @@ static void drawScene() {
         }
     }
 
+    /* Trajectory lines as meshes (drawn after missiles so they appear on top) */
+    /* Enemy missile trajectories */
+    for (i = 0; i < MAX_ENEMY; i++) {
+        if (!enemies[i].alive) continue;
+        /* Create line mesh from start to current position */
+        renderMeshes[renderMeshCount++] = create_line_mesh(enemies[i].from, enemies[i].pos, 0.05f, 0x00ffff);
+    }
+    
+    /* Our missile trajectories */
+    for (i = 0; i < MAX_OUR_MISSILE; i++) {
+        if (!ourMissiles[i].active) continue;
+        /* Create line mesh from launch position to current position */
+        renderMeshes[renderMeshCount++] = create_line_mesh(ourMissiles[i].launchPos, ourMissiles[i].pos, 0.05f, 0xffff00);
+    }
+
     /* Update camera */
     camera.Position = vector3(
         camDist * sinf(camAngleY) * cosf(camAngleX),
@@ -868,9 +903,6 @@ static void drawScene() {
 
     device_render(m_device, &camera, renderMeshes, renderMeshCount, &lightPos);
 
-    /* Draw trajectory lines after 3D meshes */
-    draw_trajectory_lines(&camera);
-    
     /* Render smoke particles */
     {
         Vector3* particlePositions;
