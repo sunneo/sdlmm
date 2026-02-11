@@ -49,7 +49,6 @@ static int showhelp = 1;
 static int showmode = 3;
 static float simulatetime_factor = 0.01f;
 static int random_simulatefactor = 1;
-static int centralize = 0;
 static int SZ = NUM_BODY;
 /* Camera */
 static float camDist = 50.0f;
@@ -271,12 +270,17 @@ static void freeParticles() {
 /**
  * Update particle positions from physics simulation.
  * Maps simulation coordinates to 3D world space.
+ * When camera tracking is enabled, centers particles around their center of mass.
  */
 static void updateParticlePositions(float avgX, float avgY, float avgZ) {
     int i;
     float scale = 0.1f;  /* Scale factor for world coordinates */
+    
+    /* When camera tracking is enabled, centralize particles around center of mass */
+    int shouldCentralize = cameraTracking;
+    
     for (i = 0; i < SZ; i++) {
-        if (centralize) {
+        if (shouldCentralize) {
             particlePositions[i] = vector3(
                 (X_axis[i] - avgX) * scale,
                 (Y_axis[i] - avgY) * scale,

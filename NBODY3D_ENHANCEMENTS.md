@@ -1,0 +1,189 @@
+# nbody3d NVIDIA Sample Enhancements
+
+This document describes the enhancements made to nbody3d.c to match the NVIDIA CUDA nbody sample functionality.
+
+## Overview
+
+The nbody3d simulation has been enhanced with:
+1. Mouse-based camera rotation control
+2. Smooth camera center tracking with gradual transitions
+3. UI-based particle size control
+4. Improved user interface with visual sliders
+
+## Changes Made
+
+### 1. Mouse Control for Camera Rotation
+
+**Implementation:**
+- Added mouse drag support for camera rotation (similar to NVIDIA sample)
+- Horizontal mouse movement rotates camera around Y-axis (yaw)
+- Vertical mouse movement rotates camera around X-axis (pitch, inverted for natural feel)
+- Vertical angle is clamped to prevent camera flipping (-1.5 to 1.5 radians)
+
+**New Variables:**
+```c
+static int mouseDown = 0;
+static int lastMouseX = 0;
+static int lastMouseY = 0;
+```
+
+**Key Functions:**
+- `mousefnc()`: Updated to detect mouse down/up and distinguish between slider clicks and camera rotation
+- `mousemotion()`: New logic to handle camera rotation during drag
+  - Sensitivity: 0.005 radians per pixel
+  - Automatically disables camera tracking when user manually controls camera
+
+### 2. Camera Center Tracking
+
+**Implementation:**
+- Pressing 'C' key toggles smooth camera tracking mode
+- When enabled, camera gradually transitions to center view
+- Uses exponential smoothing for smooth, natural transitions
+- Target angles: (0.3, 0.0), distance: 50.0
+
+**New Variables:**
+```c
+static int cameraTracking = 0;
+static float targetCamAngleX = 0.3f;
+static float targetCamAngleY = 0.0f;
+static float targetCamDist = 50.0f;
+static const float camTransitionSpeed = 0.1f;  /* 10% per frame */
+```
+
+**Key Features:**
+- **Gradual transition**: Camera angles and distance smoothly interpolate to target values
+- **Auto-centralize**: When tracking is enabled, particles are centered around their center of mass
+- **Manual override**: Any manual camera control (arrows, +/-, mouse) disables tracking
+- **Visual feedback**: HUD shows "camera tracking: on/off [C]"
+
+**Updated Functions:**
+- `updateCamera()`: Now handles smooth transitions when tracking is enabled
+- `updateParticlePositions()`: Links particle centering to camera tracking
+- `kbfnc()`: Updated 'C' key behavior to toggle tracking instead of centralize
+
+### 3. Particle Size Control
+
+**Implementation:**
+- Added UI slider for dynamic particle size adjustment
+- Range: 5.0 to 40.0 (default: 15.0)
+- Green slider bar for visual distinction from simulation speed slider
+
+**New Variable:**
+```c
+static float particleSize = 15.0f;
+```
+
+**UI Elements:**
+- Slider position: y: 65-80, x: 320-720
+- Color: Green (0x00ff00) for filled portion, white (0xffffff) for outline
+- Display: Shows current particle size value on HUD
+
+**Updated Functions:**
+- `draw3D()`: Changed hardcoded 15.0f to `particleSize` variable
+- `mousefnc()`: Added slider handling for particle size adjustment
+
+### 4. UI Improvements
+
+**Layout Changes:**
+- Reorganized HUD to accommodate new controls
+- Moved simulation factor slider to y: 25-40 (was y: 60-80)
+- Added particle size slider at y: 65-80
+- Added camera tracking status indicator
+- Updated help text to reflect new controls
+
+**HUD Layout:**
+```
+Line  5: [loop/total] tm:xxx bodies:xxx
+Line 25: simulate factor: x.xxxxx  [YELLOW SLIDER]
+Line 45: random factor: on/off[r]
+Line 65: particle size: xx.x        [GREEN SLIDER]
+Line 85: cam dist:xx.x angle:(x.xx,x.xx)
+Line 105: camera tracking: on/off[C]
+Line 125: debug cube: on/off[d] (if enabled)
+Line 145: [h]help [+/-]zoom [arrows/mouse]rotate [C]track
+```
+
+**Slider Design:**
+- **Simulation Speed Slider**: Yellow (0xfdfd00), range 0-2
+- **Particle Size Slider**: Green (0x00ff00), range 5-40
+- Both sliders have white outlines and are draggable
+
+## Controls Summary
+
+### Keyboard Controls
+- **0-3**: Change display mode (wireframe/solid/mixed)
+- **C**: Toggle camera center tracking (with smooth transition)
+- **r/R**: Toggle random simulation factor
+- **h/H**: Toggle help overlay
+- **+/-**: Zoom camera in/out (disables tracking)
+- **Arrow keys**: Rotate camera (disables tracking)
+- **d/D**: Toggle debug cube (if enabled)
+
+### Mouse Controls
+- **Mouse drag**: Rotate camera around scene (like NVIDIA sample)
+  - Drag anywhere outside sliders to rotate
+  - Automatically disables tracking
+- **Click/drag on yellow slider**: Adjust simulation speed (0-2x)
+- **Click/drag on green slider**: Adjust particle size (5-40)
+
+## Technical Details
+
+### Camera Transition Algorithm
+```c
+if (cameraTracking) {
+    camAngleX += (targetCamAngleX - camAngleX) * camTransitionSpeed;
+    camAngleY += (targetCamAngleY - camAngleY) * camTransitionSpeed;
+    camDist += (targetCamDist - camDist) * camTransitionSpeed;
+}
+```
+- Uses exponential smoothing with 10% transition speed
+- Smooth, natural-looking camera movement
+- Converges to target position over ~20-30 frames
+
+### Particle Centering
+When camera tracking is enabled:
+- Particles are positioned relative to their center of mass
+- Creates a consistent view regardless of where particles have drifted
+- Helps visualize the gravitational system as a unified whole
+
+When tracking is disabled:
+- Particles are positioned relative to fixed origin (simulation space center)
+- Allows particles to drift across the screen naturally
+
+### Mouse Sensitivity
+- Rotation: 0.005 radians per pixel
+- Provides fine control while still allowing quick camera movements
+- Vertical angle clamped to ±1.5 radians (±86 degrees) to prevent gimbal lock
+
+## Compatibility with NVIDIA Sample
+
+These changes bring nbody3d.c closer to the NVIDIA CUDA nbody sample:
+- ✅ Mouse-based camera rotation
+- ✅ Smooth camera transitions
+- ✅ UI-based parameter control
+- ✅ Particle size adjustment
+- ✅ Similar visual appearance (cyan/turquoise/white particles with additive blending)
+- ✅ Same gravitational physics algorithm
+
+## Build Instructions
+
+```bash
+cd /home/runner/work/sdlmm/sdlmm
+make nbody3d
+```
+
+Or manually:
+```bash
+gcc -O2 -I/usr/include/SDL -I/usr/include/freetype2 -I../ -msse2 \
+    exams/nbody3d.c ./sdlmm.c -lSDL -lm -lpthread -lSDL_ttf -lSDL_image \
+    -lfreetype -fopenmp -o nbody3d
+```
+
+## Future Enhancements
+
+Potential future improvements to further match NVIDIA sample:
+- [ ] GPU acceleration using OpenCL/CUDA
+- [ ] Additional camera modes (e.g., follow particles, orbit around center)
+- [ ] Save/load camera positions
+- [ ] Benchmark mode with performance metrics
+- [ ] Different particle configurations (galaxy, shell, etc.)
