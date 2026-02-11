@@ -739,21 +739,33 @@ static void draw_trajectory_lines(const Camera* camera) {
         /* Only draw trajectory when missile is visible (not too high in the sky) */
         if (enemies[i].pos.y > 10.0f) continue;  /* Skip missiles still high in the sky */
         
-        /* Draw line from starting position to CURRENT position (not target) */
+        /* Calculate visible trajectory start point (limit to visible area) */
+        Vector3 trajStart = enemies[i].from;
+        if (trajStart.y > 10.0f) {
+            /* If original start is too high, calculate intersection point at y=10 */
+            float t = (10.0f - enemies[i].from.y) / (enemies[i].pos.y - enemies[i].from.y);
+            if (t > 0.0f && t < 1.0f) {
+                trajStart.x = enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t;
+                trajStart.y = 10.0f;
+                trajStart.z = enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t;
+            }
+        }
+        
+        /* Draw line from visible start to CURRENT position */
         int segments = TRAJECTORY_SEGMENTS;
         for (j = 0; j < segments; j++) {
             float t1 = (float)j / segments;
             float t2 = (float)(j + 1) / segments;
             
             Vector3 p1 = vector3(
-                enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t1,
-                enemies[i].from.y + (enemies[i].pos.y - enemies[i].from.y) * t1,
-                enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t1
+                trajStart.x + (enemies[i].pos.x - trajStart.x) * t1,
+                trajStart.y + (enemies[i].pos.y - trajStart.y) * t1,
+                trajStart.z + (enemies[i].pos.z - trajStart.z) * t1
             );
             Vector3 p2 = vector3(
-                enemies[i].from.x + (enemies[i].pos.x - enemies[i].from.x) * t2,
-                enemies[i].from.y + (enemies[i].pos.y - enemies[i].from.y) * t2,
-                enemies[i].from.z + (enemies[i].pos.z - enemies[i].from.z) * t2
+                trajStart.x + (enemies[i].pos.x - trajStart.x) * t2,
+                trajStart.y + (enemies[i].pos.y - trajStart.y) * t2,
+                trajStart.z + (enemies[i].pos.z - trajStart.z) * t2
             );
             
             /* Transform to screen space */
