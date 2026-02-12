@@ -33,10 +33,10 @@
 #include "../sdlmm.h"
 #include "../babylon3D.c"
 
-#define SCREENX 800
-#define SCREENY 600
-#define NUM_BODY 2048
-#define LOOP 500
+#define SCREENX 1400
+#define SCREENY 800
+#define NUM_BODY 3072
+#define LOOP 2000
 #define MIN_X_axis 0
 #define MIN_Y_axis 0
 #define MIN_Z_axis 0
@@ -82,7 +82,7 @@ static float camDist = 50.0f;
 static float camAngleX = 0.3f;
 static float camAngleY = 0.0f;
 /* Camera tracking */
-static int camera_tracking = 0;  /* Toggle camera center tracking */
+static int camera_tracking = 1;  /* Toggle camera center tracking */
 static float target_cam_angle_x = 0.3f;  /* Target angles for smooth transition */
 static float target_cam_angle_y = 0.0f;
 static float target_cam_dist = 50.0f;
@@ -121,16 +121,16 @@ static int showDebugCube = 1;  /* Toggle for debug cube visibility */
 
 /* Glow colors for particles - cyan/turquoise/white like NVIDIA nbody demo */
 static const int glowColors[] = {
-    0x00FFFF,  /* cyan */
-    0x40FFFF,  /* light cyan */
-    0x80FFFF,  /* lighter cyan */
-    0xC0FFFF,  /* very light cyan */
+    0xFFFF00,  /* cyan */
+    0xFFFF40,  /* light cyan */
+    0xFFFF80,  /* lighter cyan */
+    0xFFFFC0,  /* very light cyan */
     0xFFFFFF,  /* white */
-    0x00E0E0,  /* darker cyan */
-    0x00C0C0,  /* dark cyan */
-    0x60FFFF,  /* cyan variant */
-    0xA0FFFF,  /* cyan variant 2 */
-    0xE0FFFF   /* almost white */
+    0xE0E000,  /* darker cyan */
+    0xC0C000,  /* dark cyan */
+    0xFFFF60,  /* cyan variant */
+    0xFFFFA0,  /* cyan variant 2 */
+    0xFFFFE0   /* almost white */
 };
 #define NUM_GLOW_COLORS 10
 
@@ -750,7 +750,7 @@ int main(int argc, char** argv) {
     /* Create debug cube for visual confirmation */
     initDebugCube();
 
-    for (i = 0; i < 20; ++i) {
+    for (i = 0; i < 999999; ++i) {
         main_run(argc, argv);
     }
 
