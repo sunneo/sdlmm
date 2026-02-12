@@ -51,7 +51,7 @@ static float MAX_Z_axis = 100.0f;
 static float MAX_Velocity = 10.0f;
 static float Gravity_Coef = 30.3f;
 static float SOFTENING = 100.001f;  /* Softening parameter (epsilon) to prevent singularities - NVIDIA nbody sample */
-static float SOFTENING_SQUARED = 100.001f * 100.001f;
+static float SOFTENING_SQUARED;
 
 /* UI slider constants */
 #define SLIDER_X_START 320
@@ -166,7 +166,7 @@ static float clampf(float v, float minv, float maxv) {
  *   Gravity_Coef: randomized within reasonable range
  *   SOFTENING: randomized within reasonable range
  */
-static void randomizeParameters() {
+static void Randomize_Parameters() {
     float max_screen = (SCREENX > SCREENY) ? SCREENX : SCREENY;
     
     MAX_X_axis = 10.0f + ((float)rand() / RAND_MAX) * (SCREENX - 10.0f);
@@ -548,7 +548,7 @@ static int main_run(int argc, char** argv) {
     float avgX = 0, avgY = 0, avgZ = 0;
     
     /* Randomize simulation parameters for this loop cycle */
-    randomizeParameters();
+    Randomize_Parameters();
     
     tmstart = getDoubleTime();
     Init_AllBody();
@@ -707,6 +707,10 @@ int main(int argc, char** argv) {
     if (argc > 1) {
         SZ = atoi(argv[1]);
     }
+    
+    /* Initialize SOFTENING_SQUARED from initial SOFTENING value */
+    SOFTENING_SQUARED = SOFTENING * SOFTENING;
+    
     X_axis = allocateBody();
     Y_axis = allocateBody();
     Z_axis = allocateBody();
