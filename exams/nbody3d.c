@@ -466,7 +466,12 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
            sprintf(buf, "debug cube: %s[d]", showDebugCube ? "on" : "off");
            drawtext(buf, 5, 125, 0xffffff);
         }
-        drawtext("[h]help [+/-]zoom [arrows/mouse]rotate [C]track", 5, 145, 0xaaaaaa);
+        /* Display randomized parameters */
+        sprintf(buf, "MAX_X:%.1f MAX_Y:%.1f MAX_Z:%.1f", MAX_X_axis, MAX_Y_axis, MAX_Z_axis);
+        drawtext(buf, 5, 165, 0xaaaaaa);
+        sprintf(buf, "MAX_Vel:%.1f Grav:%.1f Soft:%.1f", MAX_Velocity, Gravity_Coef, SOFTENING);
+        drawtext(buf, 5, 185, 0xaaaaaa);
+        drawtext("[h]help [+/-]zoom [arrows/mouse]rotate [C]track", 5, 205, 0xaaaaaa);
     }
 
     flushscreen();
