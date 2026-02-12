@@ -37,19 +37,21 @@
 #define SCREENY 600
 #define NUM_BODY 2048
 #define LOOP 500
-#define MAX_X_axis 300
 #define MIN_X_axis 0
-#define MAX_Y_axis 300
 #define MIN_Y_axis 0
-#define MAX_Z_axis 100
 #define MIN_Z_axis 0
-#define MAX_Velocity 10
 #define MIN_velocity 1
 #define MAX_Mass 300
 #define MIN_Mass 200
-#define Gravity_Coef 30.3f
-#define SOFTENING 100.001f  /* Softening parameter (epsilon) to prevent singularities - NVIDIA nbody sample */
-#define SOFTENING_SQUARED (SOFTENING * SOFTENING)
+
+/* Parameters that are randomized each loop cycle */
+static float MAX_X_axis = 300.0f;
+static float MAX_Y_axis = 300.0f;
+static float MAX_Z_axis = 100.0f;
+static float MAX_Velocity = 10.0f;
+static float Gravity_Coef = 30.3f;
+static float SOFTENING = 100.001f;  /* Softening parameter (epsilon) to prevent singularities - NVIDIA nbody sample */
+static float SOFTENING_SQUARED;
 
 /* UI slider constants */
 #define SLIDER_X_START 320
@@ -154,6 +156,28 @@ static float clampf(float v, float minv, float maxv) {
     return v;
 }
 
+/**
+ * Randomize simulation parameters for each loop cycle.
+ * Ranges:
+ *   MAX_X_axis: 10 to SCREENX
+ *   MAX_Y_axis: 10 to SCREENY
+ *   MAX_Z_axis: 10 to MAX(SCREENX, SCREENY)
+ *   MAX_Velocity: 10 to SCREENY/2
+ *   Gravity_Coef: randomized within reasonable range
+ *   SOFTENING: randomized within reasonable range
+ */
+static void Randomize_Parameters() {
+    float max_screen = (SCREENX > SCREENY) ? SCREENX : SCREENY;
+    
+    MAX_X_axis = 10.0f + ((float)rand() / RAND_MAX) * (SCREENX - 10.0f);
+    MAX_Y_axis = 10.0f + ((float)rand() / RAND_MAX) * (SCREENY - 10.0f);
+    MAX_Z_axis = 10.0f + ((float)rand() / RAND_MAX) * (max_screen - 10.0f);
+    MAX_Velocity = 10.0f + ((float)rand() / RAND_MAX) * (SCREENY/2.0f - 10.0f);
+    Gravity_Coef = 10.0f + ((float)rand() / RAND_MAX) * 50.0f;  /* Range: 10-60 */
+    SOFTENING = 50.0f + ((float)rand() / RAND_MAX) * 150.0f;    /* Range: 50-200 */
+    SOFTENING_SQUARED = SOFTENING * SOFTENING;
+}
+
 static float* allocateBody() {
     float* ret = (float*)malloc(sizeof(float) * SZ);
     memset(ret, 0, sizeof(float) * SZ);
@@ -166,9 +190,9 @@ static void freeBody(void* p) { free(p); }
 static void Init_AllBody() {
     int i;
     for (i = 0; i < SZ; i++) {
-        X_axis[i] = rand() % (MAX_X_axis - MIN_X_axis) + MIN_X_axis;
-        Y_axis[i] = rand() % (MAX_Y_axis - MIN_Y_axis) + MIN_Y_axis;
-        Z_axis[i] = rand() % (MAX_Z_axis - MIN_Z_axis) + MIN_Z_axis;
+        X_axis[i] = MIN_X_axis + ((float)rand() / RAND_MAX) * (MAX_X_axis - MIN_X_axis);
+        Y_axis[i] = MIN_Y_axis + ((float)rand() / RAND_MAX) * (MAX_Y_axis - MIN_Y_axis);
+        Z_axis[i] = MIN_Z_axis + ((float)rand() / RAND_MAX) * (MAX_Z_axis - MIN_Z_axis);
         X_Velocity[i] = newX_velocity[i] = 0;
         Y_Velocity[i] = newY_velocity[i] = 0;
         Z_Velocity[i] = newZ_velocity[i] = 0;
@@ -442,7 +466,12 @@ static void draw3D(int loop, int totalLoop, double tm, float avgX, float avgY, f
            sprintf(buf, "debug cube: %s[d]", showDebugCube ? "on" : "off");
            drawtext(buf, 5, 125, 0xffffff);
         }
-        drawtext("[h]help [+/-]zoom [arrows/mouse]rotate [C]track", 5, 145, 0xaaaaaa);
+        /* Display randomized parameters */
+        sprintf(buf, "MAX_X:%.1f MAX_Y:%.1f MAX_Z:%.1f", MAX_X_axis, MAX_Y_axis, MAX_Z_axis);
+        drawtext(buf, 5, 165, 0xaaaaaa);
+        sprintf(buf, "MAX_Vel:%.1f Grav:%.1f Soft:%.1f", MAX_Velocity, Gravity_Coef, SOFTENING);
+        drawtext(buf, 5, 185, 0xaaaaaa);
+        drawtext("[h]help [+/-]zoom [arrows/mouse]rotate [C]track", 5, 205, 0xaaaaaa);
     }
 
     flushscreen();
@@ -517,6 +546,10 @@ static int main_run(int argc, char** argv) {
     double tmstart, tmend;
     double fps_time_1, fps_time_2;
     float avgX = 0, avgY = 0, avgZ = 0;
+    
+    /* Randomize simulation parameters for this loop cycle */
+    Randomize_Parameters();
+    
     tmstart = getDoubleTime();
     Init_AllBody();
     for (loop = 0; loop < LOOP; loop++) {
@@ -674,6 +707,10 @@ int main(int argc, char** argv) {
     if (argc > 1) {
         SZ = atoi(argv[1]);
     }
+    
+    /* Initialize SOFTENING_SQUARED from initial SOFTENING value */
+    SOFTENING_SQUARED = SOFTENING * SOFTENING;
+    
     X_axis = allocateBody();
     Y_axis = allocateBody();
     Z_axis = allocateBody();
