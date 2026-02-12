@@ -74,8 +74,8 @@ static float SOFTENING_SQUARED;
 /* Global state */
 static int showhelp = 1;
 static int showmode = 3;
-static float simulatetime_factor = 0.01f;
-static int random_simulatefactor = 1;
+static float simulatetime_factor = 0.02f;
+static int random_simulatefactor = 0;
 static int SZ = NUM_BODY;
 /* Camera */
 static float camDist = 50.0f;
